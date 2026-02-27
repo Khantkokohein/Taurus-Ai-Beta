@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Myanmar } from "next/font/google";
 import "./globals.css";
 
@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   description: "Taurus AI Beta",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -20,8 +25,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="my">
-      <body className={myanmarFont.className}>
-        {children}
+      <body
+        className={`${myanmarFont.className} ${myanmarFont.variable} antialiased`}
+      >
+        <div className="min-h-screen w-full overflow-x-hidden">
+          {children}
+        </div>
       </body>
     </html>
   );

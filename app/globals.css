@@ -30,4 +30,7 @@ body {
   50% { transform: translateX(8px); }
   75% { transform: translateX(-6px); }
   100% { transform: translateX(0); }
+}html, body {
+  width: 100%;
+  overflow-x: hidden;
 }

@@ -40,15 +40,14 @@ function MaintenancePage() {
               </div>
             </div>
 
-            {/* Poster Image */}
-            <div className="rounded-2xl overflow-hidden border border-emerald-300/25 shadow-[0_0_40px_rgba(34,255,136,0.12)]">
-              <img
-                src="/maintenance-poster.jpg"
-                alt="Taurus AI Maintenance"
-                className="w-full h-auto object-cover"
-              />
-            </div>
-
+          {/* Poster Image */}
+<div className="rounded-2xl overflow-hidden border border-emerald-300/25 shadow-[0_0_40px_rgba(34,255,136,0.12)]">
+  <img
+    src="/publicmaintenance.png"
+    alt="Taurus AI Maintenance"
+    className="w-full h-auto object-cover"
+  />
+</div>
             {/* Only Two Lines (as you requested) */}
             <div className="mt-6 text-center">
               <div className="text-emerald-100 font-extrabold tracking-wide text-2xl md:text-3xl">

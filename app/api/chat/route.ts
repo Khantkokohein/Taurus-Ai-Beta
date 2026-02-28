@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
+import { Redis } from "@upstash/redis";
 
-type Counter = { count: number; date: string };
-
-// In-memory (Vercel serverless: may reset on cold start)
-const dailyLimits: Record<string, Counter> = {}; // per IP
-const dailyUsers: Record<string, Set<string>> = {}; // key=YYYY-MM-DD
+// Upstash Redis (from Vercel env)
+const redis = Redis.fromEnv();
 
 // Cloudflare AI model
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
@@ -98,34 +96,52 @@ export async function POST(req: Request) {
 
     // 2) Limits config
     const DAILY_LIMIT = getEnvNumber("DAILY_LIMIT", DEFAULT_DAILY_LIMIT); // per IP/day
-    const MAX_USERS_PER_DAY = getEnvNumber("MAX_USERS_PER_DAY", DEFAULT_MAX_USERS_PER_DAY);
+    const MAX_USERS_PER_DAY = getEnvNumber("MAX_USERS_PER_DAY", DEFAULT_MAX_USERS_PER_DAY); // unique IP/day
     const MAX_TOKENS = getEnvNumber("MAX_TOKENS", DEFAULT_MAX_TOKENS);
 
     // 3) IP + date
     const ip = getClientIp(req);
     const today = new Date().toISOString().split("T")[0];
 
-    // 4) Unique users/day cap
-    if (!dailyUsers[today]) dailyUsers[today] = new Set<string>();
-    dailyUsers[today].add(ip);
-    if (dailyUsers[today].size > MAX_USERS_PER_DAY) {
+    // Redis keys (daily)
+    const usersKey = `users:${today}`; // set of IPs
+    const limitKey = `limit:${ip}:${today}`; // counter per IP
+
+    // 4) Unique users/day cap (Redis Set)
+    // Add IP to today's set and check cardinality
+    await redis.sadd(usersKey, ip);
+    const usersToday = await redis.scard(usersKey);
+
+    // Expire set (2 days buffer to be safe)
+    // only set expiry if not already set (optional: always ok)
+    const ttlUsers = await redis.ttl(usersKey);
+    if (ttlUsers === -1) {
+      await redis.expire(usersKey, 60 * 60 * 48);
+    }
+
+    if (usersToday > MAX_USERS_PER_DAY) {
       return NextResponse.json(
-        { reply: `Today's public beta is full (max ${MAX_USERS_PER_DAY} users/day). Please try again tomorrow.` },
+        {
+          reply: `Today's public beta is full (max ${MAX_USERS_PER_DAY} users/day). Please try again tomorrow.`,
+        },
         { status: 429 }
       );
     }
 
-    // 5) Per-IP daily limit
-    if (!dailyLimits[ip] || dailyLimits[ip].date !== today) {
-      dailyLimits[ip] = { count: 0, date: today };
+    // 5) Per-IP daily limit (Redis INCR)
+    const count = await redis.incr(limitKey);
+
+    // Expire counter (48h buffer)
+    if (count === 1) {
+      await redis.expire(limitKey, 60 * 60 * 48);
     }
-    if (dailyLimits[ip].count >= DAILY_LIMIT) {
+
+    if (count > DAILY_LIMIT) {
       return NextResponse.json(
         { reply: `Daily limit reached (${DAILY_LIMIT}/day). Please try again tomorrow.` },
         { status: 429 }
       );
     }
-    dailyLimits[ip].count += 1;
 
     // 6) Persona prompt
     const personaKey = PERSONA_PROMPTS[personaKeyRaw] ? personaKeyRaw : "taurus";
@@ -168,15 +184,18 @@ export async function POST(req: Request) {
       data?.response ??
       "No response";
 
+    // 8) Return
     return NextResponse.json({
       reply,
       meta: {
         persona: personaKey,
-        dailyUsed: dailyLimits[ip]?.count ?? 0,
+        dailyUsed: count,
         dailyLimit: DAILY_LIMIT,
-        usersToday: dailyUsers[today]?.size ?? 0,
+        usersToday,
         usersCap: MAX_USERS_PER_DAY,
         maxTokens: MAX_TOKENS,
+        ip,
+        date: today,
       },
     });
   } catch (e) {

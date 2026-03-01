@@ -1,15 +1,7 @@
 "use client";
-import { supabase } from "@/lib/supabase";
 
-async function signInWithGoogle() {
-  await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: window.location.origin,
-    },
-  });
-}
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type PersonaKey =
   | "taurus"
@@ -91,7 +83,7 @@ export default function Page() {
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [activePersona, setActivePersona] = useState<PersonaKey>("taurus");
 
-  // Auth UI (Beta: Guest allowed; Global: Login required later)
+  // Auth state (Supabase)
   const [authed, setAuthed] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: "free" | "pro" | "plus" } | null>(null);
 
@@ -114,12 +106,79 @@ export default function Page() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // ✅ Supabase session restore + realtime auth updates
+  useEffect(() => {
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      const session = data.session;
+
+      if (session) {
+        const meta: any = session.user.user_metadata || {};
+        setAuthed(true);
+        setUser({
+          name: meta.full_name || meta.name || "User",
+          email: session.user.email || "",
+          role: "free",
+        });
+      } else {
+        setAuthed(false);
+        setUser(null);
+      }
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+
+      if (session) {
+        const meta: any = session.user.user_metadata || {};
+        setAuthed(true);
+        setUser({
+          name: meta.full_name || meta.name || "User",
+          email: session.user.email || "",
+          role: "free",
+        });
+      } else {
+        setAuthed(false);
+        setUser(null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      listener?.subscription?.unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length]);
 
   const personaInfo = useMemo(() => PERSONAS.find((p) => p.key === activePersona)!, [activePersona]);
   const badge = useMemo(() => getBadge(user?.email, user?.role), [user]);
+
+  // -------- Auth actions --------
+  async function signInWithGoogle() {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    setAuthed(false);
+    setUser(null);
+    setMenuOpen(false);
+  }
+
+  async function continueGuest() {
+    // If already logged in, sign out to become guest
+    await supabase.auth.signOut().catch(() => {});
+    setAuthed(false);
+    setUser(null);
+  }
 
   // -------- helpers --------
   function endChat() {
@@ -135,7 +194,6 @@ export default function Page() {
   }
 
   function startIntake(kind: IntakeKind) {
-    // switch to recruitment mode
     setMode("recruitment");
     setIntakeKind(kind);
     setIntake({});
@@ -150,16 +208,13 @@ export default function Page() {
   async function switchPersona(next: PersonaKey) {
     if (next === activePersona) return;
 
-    // End Chat flow before switching
     if (messages.length > 0) {
       const ok = window.confirm("End current chat and switch AI?");
       if (!ok) return;
       endChat();
     }
 
-    // Also exit recruitment mode if switching persona (safety)
     resetIntake();
-
     setActivePersona(next);
     setChoiceOpen(false);
     setMenuOpen(false);
@@ -167,11 +222,10 @@ export default function Page() {
 
   function autoGrowTextarea(el: HTMLTextAreaElement) {
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 180)}px`; // cap to avoid huge growth
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
   }
 
   async function submitIntake(payload: any) {
-    // MVP: submit to /api/intake (you will wire to Supabase/Sheet)
     const res = await fetch("/api/intake", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -188,7 +242,7 @@ export default function Page() {
 
   function buildIntakePayload(kind: IntakeKind, data: Record<string, any>) {
     return {
-      kind, // "job" | "hire"
+      kind,
       createdAt: Date.now(),
       source: "taurus_web",
       user: user ? { name: user.name, email: user.email, role: user.role } : { guest: true },
@@ -203,15 +257,12 @@ export default function Page() {
     const userMsg: Msg = { id: uid(), role: "user", text, ts: Date.now() };
     setMessages((m) => [...m, userMsg]);
     setInput("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
 
-    // Recruitment mode: step-based intake (no /api/chat)
+    // Recruitment mode: step-based intake
     if (mode === "recruitment" && intakeKind) {
       const yn = awaitingSubmit ? normalizeYesNo(text) : null;
 
-      // If waiting YES/NO for submit
       if (awaitingSubmit) {
         if (yn === "no") {
           setMessages((m) => [
@@ -261,23 +312,15 @@ export default function Page() {
           return;
         }
 
-        // Not recognized as yes/no
         setMessages((m) => [
           ...m,
-          {
-            id: uid(),
-            role: "ai",
-            text: "Submit လုပ်မလား? (YES / NO) လို့ပဲ ပြန်ပို့ပေးပါ။",
-            ts: Date.now(),
-          },
+          { id: uid(), role: "ai", text: "Submit လုပ်မလား? (YES / NO) လို့ပဲ ပြန်ပို့ပေးပါ။", ts: Date.now() },
         ]);
         return;
       }
 
-      // Normal step capture
       const missing = nextMissingStep(intakeKind, intake);
       if (!missing) {
-        // already complete but not in awaitingSubmit state (edge)
         setAwaitingSubmit(true);
         setMessages((m) => [...m, { id: uid(), role: "ai", text: "Submit လုပ်မလား? (YES / NO)", ts: Date.now() }]);
         return;
@@ -291,10 +334,11 @@ export default function Page() {
         setMessages((m) => [...m, { id: uid(), role: "ai", text: next.q, ts: Date.now() }]);
       } else {
         setAwaitingSubmit(true);
-        // Show a compact summary for trust (admin will see full)
-        const summary = intakeKind === "job"
-          ? `🧾 Summary (Job Seeker)\n• Name: ${updated.name ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• City: ${updated.city ?? "-"}\n• Exp: ${updated.exp ?? "-"}\n• Salary: ${updated.salary ?? "-"}\n• Start: ${updated.availability ?? "-"}`
-          : `🧾 Summary (Employer)\n• Business: ${updated.biz ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• Position: ${updated.position ?? "-"}\n• Salary: ${updated.salary_range ?? "-"}\n• Commission: ${updated.commission ?? "-"}\n• Hours: ${updated.hours ?? "-"}\n• Location: ${updated.location ?? "-"}\n• Urgency: ${updated.urgency ?? "-"}`;
+
+        const summary =
+          intakeKind === "job"
+            ? `🧾 Summary (Job Seeker)\n• Name: ${updated.name ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• City: ${updated.city ?? "-"}\n• Exp: ${updated.exp ?? "-"}\n• Salary: ${updated.salary ?? "-"}\n• Start: ${updated.availability ?? "-"}`
+            : `🧾 Summary (Employer)\n• Business: ${updated.biz ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• Position: ${updated.position ?? "-"}\n• Salary: ${updated.salary_range ?? "-"}\n• Commission: ${updated.commission ?? "-"}\n• Hours: ${updated.hours ?? "-"}\n• Location: ${updated.location ?? "-"}\n• Urgency: ${updated.urgency ?? "-"}`;
 
         setMessages((m) => [
           ...m,
@@ -304,7 +348,7 @@ export default function Page() {
       return;
     }
 
-    // normal chat mode (existing)
+    // normal chat mode
     setSending(true);
     try {
       const res = await fetch("/api/chat", {
@@ -326,33 +370,8 @@ export default function Page() {
     }
   }
 
-  // Photo Create (UI both: menu + button). Feature can be Coming Soon.
   function photoCreate() {
     alert("Photo Create (Coming Soon) — beta limited test will be enabled later.");
-  }
-
-  // Fake Google login UI (scaffold). Wiring next step with NextAuth.
-  function googleLoginMock() {
-    // Scaffold behavior: set a demo user (replace with real Google OAuth later)
-    setAuthed(true);
-    setUser({ name: "Free User", email: "free.user@gmail.com", role: "free" });
-  }
-
-  function continueGuest() {
-    setAuthed(false);
-    setUser(null);
-  }
-
-  // Owner quick test (optional)
-  function ownerMock() {
-    setAuthed(true);
-    setUser({ name: "Khant Ko Ko Hein", email: OWNER_EMAIL, role: "free" });
-  }
-
-  // Pro mock (optional)
-  function proMock() {
-    setAuthed(true);
-    setUser({ name: "Pro User", email: "pro.user@gmail.com", role: "pro" });
   }
 
   const headerTitle =
@@ -362,10 +381,7 @@ export default function Page() {
         : "Taurus Match — Employer Request"
       : personaInfo.title;
 
-  const headerSubtitle =
-    mode === "recruitment"
-      ? "Structured registration • Submit to Admin"
-      : personaInfo.subtitle;
+  const headerSubtitle = mode === "recruitment" ? "Structured registration • Submit to Admin" : personaInfo.subtitle;
 
   // -------- UI --------
   return (
@@ -381,7 +397,7 @@ export default function Page() {
       <header className="relative z-10 px-4 pt-4">
         <div className="mx-auto max-w-[980px]">
           <div className="flex items-center justify-between">
-            {/* Taurus badge (stars only inside badge) */}
+            {/* Taurus badge */}
             <div className="flex items-center gap-3">
               <TaurusBadge />
               <div className="leading-tight">
@@ -392,7 +408,6 @@ export default function Page() {
 
             {/* Right: user + menu */}
             <div className="flex items-center gap-3">
-              {/* User display */}
               <div className="hidden sm:flex items-center gap-2">
                 {user ? (
                   <div className="flex items-center">
@@ -404,7 +419,6 @@ export default function Page() {
                 )}
               </div>
 
-              {/* Hamburger */}
               <button
                 onClick={() => setMenuOpen(true)}
                 className="h-10 w-10 rounded-2xl border border-emerald-200/60 bg-white/60 backdrop-blur-xl
@@ -420,7 +434,7 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Login policy strip (professional) */}
+          {/* Login policy strip */}
           <div className="mt-3 rounded-2xl border border-emerald-200/50 bg-white/55 backdrop-blur-xl px-4 py-3">
             <div className="text-[12px] text-zinc-700">
               <span className="font-semibold text-zinc-900">Sign in with Google</span> to unlock enhanced security and advanced
@@ -437,7 +451,6 @@ export default function Page() {
             className="mt-4 rounded-3xl border border-emerald-200/55 bg-white/60 backdrop-blur-2xl
                        shadow-[0_12px_60px_rgba(16,185,129,0.09)]"
           >
-            {/* Chat header strip */}
             <div className="px-4 py-3 border-b border-emerald-200/35 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-[13px] font-semibold text-zinc-900">{headerTitle}</span>
@@ -479,7 +492,6 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Messages */}
             <div className="h-[60dvh] md:h-[62dvh] overflow-y-auto px-4 py-4">
               {messages.length === 0 ? (
                 <EmptyState
@@ -502,7 +514,7 @@ export default function Page() {
         </div>
       </section>
 
-      {/* Input bar fixed bottom (safe-area aware) */}
+      {/* Input bar fixed bottom */}
       <footer className="fixed bottom-0 left-0 right-0 z-20 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3">
         <div className="mx-auto max-w-[980px]">
           <div
@@ -510,11 +522,9 @@ export default function Page() {
                        shadow-[0_12px_50px_rgba(16,185,129,0.10)] px-3 py-3"
           >
             <div className="flex items-end gap-2">
-              {/* Left icon: in recruitment mode show quick actions */}
               {mode === "recruitment" ? (
                 <button
                   onClick={() => {
-                    // quick restart intake
                     const ok = window.confirm("Restart this registration?");
                     if (!ok) return;
                     if (intakeKind) startIntake(intakeKind);
@@ -607,17 +617,10 @@ export default function Page() {
 
               {/* Quick actions */}
               <div className="mt-4 space-y-2">
-                <GlassButton
-                  onClick={() => startIntake("job")}
-                  title="Job Seeker Register"
-                >
+                <GlassButton onClick={() => startIntake("job")} title="Job Seeker Register">
                   Request Job (Register)
                 </GlassButton>
-                <GlassButton
-                  onClick={() => startIntake("hire")}
-                  title="Employer Request"
-                  subtle
-                >
+                <GlassButton onClick={() => startIntake("hire")} title="Employer Request" subtle>
                   Request Employee (Register)
                 </GlassButton>
               </div>
@@ -636,27 +639,23 @@ export default function Page() {
                       <div className="mt-1 text-[13px] font-semibold text-zinc-900">Guest</div>
                     )}
                   </div>
-
                   <div className="text-right">{badge ? <UserBadge icon={badge.icon} label={badge.label} kind={badge.kind} /> : null}</div>
                 </div>
 
                 <div className="mt-3 grid grid-cols-1 gap-2">
-                  <GlassButton onClick={googleLoginMock} title="Sign in with Google (UI scaffold)">
-                    Sign in with Google
-                  </GlassButton>
+                  {!authed ? (
+                    <GlassButton onClick={signInWithGoogle} title="Sign in with Google (Supabase OAuth)">
+                      Sign in with Google
+                    </GlassButton>
+                  ) : (
+                    <GlassButton onClick={logout} title="Logout" subtle>
+                      Logout
+                    </GlassButton>
+                  )}
+
                   <GlassButton onClick={continueGuest} subtle>
                     Continue as Guest
                   </GlassButton>
-
-                  {/* Optional mock controls for testing badges */}
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <GlassButton onClick={ownerMock} subtle>
-                      Owner (test)
-                    </GlassButton>
-                    <GlassButton onClick={proMock} subtle>
-                      Pro (test)
-                    </GlassButton>
-                  </div>
                 </div>
 
                 <div className="mt-3 text-[11px] text-zinc-600">
@@ -700,7 +699,7 @@ export default function Page() {
                 <ComingSoonItem label="Google Map Shop Tracker (Coming Soon)" />
               </div>
 
-              {/* Persona shortcuts (Confirmed: Yes) */}
+              {/* Persona shortcuts */}
               <div className="mt-5">
                 <div className="text-[12px] font-semibold text-zinc-900">Persona Shortcuts</div>
                 <div className="mt-2 grid grid-cols-1 gap-2">
@@ -810,7 +809,6 @@ export default function Page() {
 /* ---------------- Components ---------------- */
 
 function TaurusBadge({ small }: { small?: boolean }) {
-  // Stars ONLY inside badge; no global stars.
   return (
     <div
       className={classNames(
@@ -824,12 +822,7 @@ function TaurusBadge({ small }: { small?: boolean }) {
         <TwinkleStars />
       </div>
       <div className="relative z-10 h-full w-full flex items-center justify-center">
-        <span
-          className={classNames(
-            "font-extrabold tracking-[0.18em] text-emerald-700/90",
-            small ? "text-[11px]" : "text-[12px]"
-          )}
-        >
+        <span className={classNames("font-extrabold tracking-[0.18em] text-emerald-700/90", small ? "text-[11px]" : "text-[12px]")}>
           TAURUS AI
         </span>
       </div>
@@ -838,15 +831,12 @@ function TaurusBadge({ small }: { small?: boolean }) {
 }
 
 function TwinkleStars() {
-  // Lightweight CSS-only twinkle/fall effect
   return (
     <div className="absolute inset-0">
-      {/* tiny stars */}
       <span className="star s1" />
       <span className="star s2" />
       <span className="star s3" />
       <span className="star s4" />
-      {/* falling star */}
       <span className="fall f1" />
       <style jsx>{`
         .star {
@@ -859,29 +849,10 @@ function TwinkleStars() {
           opacity: 0.9;
           animation: twinkle 1.8s infinite ease-in-out;
         }
-        .s1 {
-          top: 28%;
-          left: 18%;
-          animation-delay: 0.1s;
-        }
-        .s2 {
-          top: 48%;
-          left: 55%;
-          animation-delay: 0.6s;
-          opacity: 0.75;
-        }
-        .s3 {
-          top: 22%;
-          left: 72%;
-          animation-delay: 1s;
-          opacity: 0.8;
-        }
-        .s4 {
-          top: 64%;
-          left: 32%;
-          animation-delay: 1.4s;
-          opacity: 0.7;
-        }
+        .s1 { top: 28%; left: 18%; animation-delay: 0.1s; }
+        .s2 { top: 48%; left: 55%; animation-delay: 0.6s; opacity: 0.75; }
+        .s3 { top: 22%; left: 72%; animation-delay: 1s; opacity: 0.8; }
+        .s4 { top: 64%; left: 32%; animation-delay: 1.4s; opacity: 0.7; }
 
         .fall {
           position: absolute;
@@ -893,58 +864,30 @@ function TwinkleStars() {
           animation: fall 3.2s infinite ease-in-out;
           filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.18));
         }
-        .f1 {
-          top: 18%;
-          left: -10%;
-        }
+        .f1 { top: 18%; left: -10%; }
 
         @keyframes twinkle {
-          0%,
-          100% {
-            transform: scale(0.9);
-            opacity: 0.55;
-          }
-          50% {
-            transform: scale(1.2);
-            opacity: 0.95;
-          }
+          0%, 100% { transform: scale(0.9); opacity: 0.55; }
+          50% { transform: scale(1.2); opacity: 0.95; }
         }
         @keyframes fall {
-          0% {
-            transform: translateX(-20%) translateY(0) rotate(-18deg);
-            opacity: 0;
-          }
-          15% {
-            opacity: 0.65;
-          }
-          55% {
-            opacity: 0.65;
-          }
-          100% {
-            transform: translateX(160%) translateY(40%) rotate(-18deg);
-            opacity: 0;
-          }
+          0% { transform: translateX(-20%) translateY(0) rotate(-18deg); opacity: 0; }
+          15% { opacity: 0.65; }
+          55% { opacity: 0.65; }
+          100% { transform: translateX(160%) translateY(40%) rotate(-18deg); opacity: 0; }
         }
       `}</style>
     </div>
   );
 }
 
-function UserBadge({
-  icon,
-  label,
-  kind,
-}: {
-  icon: string;
-  label: string;
-  kind: "owner" | "pro" | "free";
-}) {
+function UserBadge({ icon, label, kind }: { icon: string; label: string; kind: "owner" | "pro" | "free" }) {
   const border =
     kind === "owner"
       ? "border-emerald-300/65 text-emerald-800"
       : kind === "pro"
-        ? "border-emerald-300/55 text-emerald-800"
-        : "border-emerald-200/60 text-emerald-700";
+      ? "border-emerald-300/55 text-emerald-800"
+      : "border-emerald-200/60 text-emerald-700";
 
   return (
     <span
@@ -1048,7 +991,12 @@ function MessageBubble({ role, text }: { role: "user" | "ai"; text: string }) {
   const isUser = role === "user";
   return (
     <div className={classNames("flex", isUser ? "justify-end" : "justify-start")}>
-      <div className={classNames("max-w-[86%] rounded-3xl px-4 py-3 border backdrop-blur-2xl bg-white/75", isUser ? "border-emerald-300/55" : "border-emerald-200/45")}>
+      <div
+        className={classNames(
+          "max-w-[86%] rounded-3xl px-4 py-3 border backdrop-blur-2xl bg-white/75",
+          isUser ? "border-emerald-300/55" : "border-emerald-200/45"
+        )}
+      >
         <div className="text-[14px] text-zinc-900 leading-relaxed whitespace-pre-wrap">{text}</div>
       </div>
     </div>

@@ -1,10 +1,7 @@
 // app/api/chat/route.ts  (FULL REPLACE — Enterprise Main AI Super Power Mode)
-export const runtime = "edge";
-export const maxDuration = 10;
-
-
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
+export const runtime = "edge";
 
 // Upstash Redis (from Vercel env)
 const redis = Redis.fromEnv();
@@ -17,8 +14,8 @@ const AI_VERSION = "TAURUS-AI/enterprise-main-superpower/v1";
 
 // ===== Defaults (override via env) =====
 const DEFAULT_DAILY_LIMIT = 50; // per IP/day
-const DEFAULT_MAX_TOKENS = 500; // enterprise balance for Main AI
-const DEFAULT_TIMEOUT_MS = 8000; // 20s
+const DEFAULT_MAX_TOKENS = 1000; // enterprise balance for Main AI
+const DEFAULT_TIMEOUT_MS = 20000; // 20s
 
 // ===== Helpers =====
 function getEnvNumber(key: string, fallback: number) {

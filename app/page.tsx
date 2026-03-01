@@ -1,5 +1,14 @@
 "use client";
+import { supabase } from "@/lib/supabase";
 
+async function signInWithGoogle() {
+  await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin,
+    },
+  });
+}
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type PersonaKey =

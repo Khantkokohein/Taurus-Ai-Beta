@@ -1,7 +1,9 @@
-import { Redis } from "@upstash/redis";
-import { NextResponse } from "next/server";
 
 export const runtime = "edge";
+export const maxDuration = 10;
+
+import { Redis } from "@upstash/redis";
+import { NextResponse } from "next/server";
 
 const redis = Redis.fromEnv();
 

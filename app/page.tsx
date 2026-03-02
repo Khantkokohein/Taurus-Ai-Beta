@@ -635,8 +635,9 @@ export default function Page() {
       {menuOpen ? (
         <div className="fixed inset-0 z-30">
           <div className="absolute inset-0 bg-black/15 dark:bg-black/40" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-          <aside className="absolute right-0 top-0 h-full w-[86%] max-w-[380px] bg-white/75 dark:bg-zinc-950/70 backdrop-blur-2xl border-l border-emerald-200/60 dark:border-white/12 shadow-[0_0_60px_rgba(16,185,129,0.12)] dark:shadow-[0_0_70px_rgba(0,0,0,0.55)]">
-            <div className="p-4">
+         <aside className="absolute right-0 top-0 h-full w-[86%] max-w-[380px] bg-white/75 dark:bg-zinc-950/70 backdrop-blur-2xl border-l border-emerald-200/60 dark:border-white/12 shadow-[0_0_60px_rgba(16,185,129,0.12)] dark:shadow-[0_0_70px_rgba(0,0,0,0.55)]">
+  <div className="h-full overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+20px)]">
+    ...
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <TaurusBadge small />

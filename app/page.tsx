@@ -90,6 +90,13 @@ export default function Page() {
 
   // Theme
   const [theme, setTheme] = useState<ThemeMode>("light");
+  useEffect(() => {
+  if (theme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+}, [theme]);
 
   // Auth state (Supabase)
   const [authed, setAuthed] = useState(false);

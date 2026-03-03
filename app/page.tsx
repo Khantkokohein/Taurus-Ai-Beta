@@ -123,17 +123,25 @@ useEffect(() => {
 }, []);
 
 async function createImage(prompt: string) {
+
   const deviceId = localStorage.getItem(LS_DEVICE) || "unknown";
+
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data?.session?.access_token || null;
 
   const res = await fetch("/api/image", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
     body: JSON.stringify({ prompt, deviceId }),
   });
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(String(data?.error ?? "Image create failed"));
-  return data as { url: string };
+  const dataRes = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(String(dataRes?.error ?? "Image create failed"));
+
+  return dataRes as { url: string };
 }
 
   // Auth state (Supabase)
@@ -927,11 +935,10 @@ async function createImage(prompt: string) {
           </div>
         </ModalShell>
       ) : null}
-      {imageModalOpen && (
+     {imageModalOpen && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div className="w-[90%] max-w-md rounded-2xl bg-white dark:bg-zinc-900 border border-green-500/30 p-5 shadow-xl">
-
-      <h2 className="text-lg font-semibold mb-3 text-center">
+    <div className="w-[90%] max-w-md rounded-3xl bg-white/85 dark:bg-zinc-950/75 border border-white/20 p-5 shadow-xl backdrop-blur-2xl">
+      <h2 className="text-lg font-semibold mb-3 text-center text-zinc-900 dark:text-white">
         Create Image
       </h2>
 
@@ -939,7 +946,7 @@ async function createImage(prompt: string) {
         value={imagePrompt}
         onChange={(e) => setImagePrompt(e.target.value)}
         placeholder="Enter image prompt..."
-        className="w-full px-4 py-2 rounded-lg bg-transparent border border-green-500/30 focus:outline-none focus:border-green-500"
+        className="w-full px-4 py-2 rounded-2xl bg-white/60 dark:bg-zinc-900/45 border border-white/20 text-zinc-900 dark:text-white placeholder-zinc-500 dark:placeholder-white/35 focus:outline-none focus:border-white/35"
       />
 
       {imageErr && (
@@ -951,7 +958,7 @@ async function createImage(prompt: string) {
       <div className="flex gap-3 mt-4">
         <button
           onClick={() => setImageModalOpen(false)}
-          className="flex-1 py-2 rounded-lg border border-zinc-500/30"
+          className="flex-1 py-2 rounded-2xl border border-white/20 bg-white/55 dark:bg-zinc-900/45 text-zinc-800 dark:text-white hover:bg-white/70 dark:hover:bg-zinc-900/60"
         >
           Cancel
         </button>
@@ -971,7 +978,7 @@ async function createImage(prompt: string) {
               setImageErr("Image create failed");
             }
           }}
-          className="flex-1 py-2 rounded-lg border border-green-500 text-green-500"
+          className="flex-1 py-2 rounded-2xl border border-white/30 bg-white/65 dark:bg-zinc-900/55 text-zinc-900 dark:text-white hover:bg-white/80 dark:hover:bg-zinc-900/70 font-semibold"
         >
           Generate
         </button>

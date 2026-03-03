@@ -20,6 +20,7 @@
 body {
    background: transparent;
   color: var(--foreground);
+
   font-family: "Noto Sans Myanmar", "Padauk", sans-serif;
 }
 @keyframes shake {
@@ -34,4 +35,11 @@ body {
 }
 html, body {
   height: 100%;
+}
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
 }

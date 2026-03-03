@@ -424,7 +424,7 @@ useEffect(() => {
 
   // -------- UI --------
   return (
-    <main className="min-h-[100dvh] w-full bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 relative overflow-hidden">
+    <main className="min-h-[100dvh] bg-white dark:bg-black">
       {/* Subtle glass background tint (no wallpaper, no global stars) */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(16,185,129,0.05),transparent_55%)] dark:bg-[radial-gradient(circle_at_50%_10%,rgba(255,255,255,0.06),transparent_55%)]" />

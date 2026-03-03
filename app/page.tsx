@@ -105,6 +105,31 @@ useEffect(() => {
   localStorage.setItem(LS_THEME, theme);
 }, [theme]);
 
+const LS_DEVICE = "taurus_device_id";
+
+useEffect(() => {
+  try {
+    const existing = localStorage.getItem(LS_DEVICE);
+    if (!existing) {
+      const id = crypto.randomUUID();
+      localStorage.setItem(LS_DEVICE, id);
+    }
+  } catch {}
+}, []);
+
+async function createImage(prompt: string) {
+  const deviceId = localStorage.getItem(LS_DEVICE) || "unknown";
+
+  const res = await fetch("/api/image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, deviceId }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(String(data?.error ?? "Image create failed"));
+  return data as { url: string };
+}
   // Auth state (Supabase)
   const [authed, setAuthed] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: "free" | "pro" | "plus" } | null>(null);

@@ -29,10 +29,10 @@ export default function RootLayout({
       <body
         className={`${myanmarFont.className} ${myanmarFont.variable} antialiased`}
       >
-        <div className="min-h-screen w-full overflow-x-hidden">
-          {children}
-          <Analytics />
-        </div>
+       <div className="min-h-[100dvh] w-full overflow-x-hidden bg-transparent">
+  {children}
+  <Analytics />
+</div>
       </body>
     </html>
   );

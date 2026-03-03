@@ -87,6 +87,11 @@ export default function Page() {
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [activePersona, setActivePersona] = useState<PersonaKey>("taurus");
 
+  // 👉 Image Modal State
+const [imageModalOpen, setImageModalOpen] = useState(false);
+const [imagePrompt, setImagePrompt] = useState("");
+const [imageErr, setImageErr] = useState<string | null>(null);
+
 // Theme
 const [theme, setTheme] = useState<ThemeMode>("light");
 
@@ -130,6 +135,7 @@ async function createImage(prompt: string) {
   if (!res.ok) throw new Error(String(data?.error ?? "Image create failed"));
   return data as { url: string };
 }
+
   // Auth state (Supabase)
   const [authed, setAuthed] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: "free" | "pro" | "plus" } | null>(null);
@@ -434,31 +440,10 @@ async function createImage(prompt: string) {
     }
   }
 
- async function photoCreate() {
-  try {
-    const prompt = window.prompt("Enter image prompt");
-    if (!prompt) return;
-
-    const deviceId = localStorage.getItem(LS_DEVICE) || "unknown";
-
-    const res = await fetch("/api/image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, deviceId }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data?.error || "Image create failed");
-      return;
-    }
-
-    // 👉 new tab မှာ ပုံဖွင့်
-    window.open(data.url, "_blank");
-  } catch (e) {
-    alert("Image error");
-  }
+ function photoCreate() {
+  setImageErr(null);
+  setImagePrompt("");
+  setImageModalOpen(true);
 }
 
   const headerTitle =
@@ -942,6 +927,58 @@ async function createImage(prompt: string) {
           </div>
         </ModalShell>
       ) : null}
+      {imageModalOpen && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="w-[90%] max-w-md rounded-2xl bg-white dark:bg-zinc-900 border border-green-500/30 p-5 shadow-xl">
+
+      <h2 className="text-lg font-semibold mb-3 text-center">
+        Create Image
+      </h2>
+
+      <input
+        value={imagePrompt}
+        onChange={(e) => setImagePrompt(e.target.value)}
+        placeholder="Enter image prompt..."
+        className="w-full px-4 py-2 rounded-lg bg-transparent border border-green-500/30 focus:outline-none focus:border-green-500"
+      />
+
+      {imageErr && (
+        <p className="text-red-500 text-sm mt-2 text-center">
+          {imageErr}
+        </p>
+      )}
+
+      <div className="flex gap-3 mt-4">
+        <button
+          onClick={() => setImageModalOpen(false)}
+          className="flex-1 py-2 rounded-lg border border-zinc-500/30"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={async () => {
+            if (!imagePrompt.trim()) {
+              setImageErr("Prompt required");
+              return;
+            }
+            try {
+              setImageErr(null);
+              const result = await createImage(imagePrompt);
+              window.open(result.url, "_blank");
+              setImageModalOpen(false);
+            } catch (e: any) {
+              setImageErr("Image create failed");
+            }
+          }}
+          className="flex-1 py-2 rounded-lg border border-green-500 text-green-500"
+        >
+          Generate
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </main>
   );
 }

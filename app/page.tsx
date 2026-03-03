@@ -434,9 +434,32 @@ async function createImage(prompt: string) {
     }
   }
 
-  function photoCreate() {
-    alert("Photo Create (Coming Soon) — beta limited test will be enabled later.");
+ async function photoCreate() {
+  try {
+    const prompt = window.prompt("Enter image prompt");
+    if (!prompt) return;
+
+    const deviceId = localStorage.getItem(LS_DEVICE) || "unknown";
+
+    const res = await fetch("/api/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, deviceId }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data?.error || "Image create failed");
+      return;
+    }
+
+    // 👉 new tab မှာ ပုံဖွင့်
+    window.open(data.url, "_blank");
+  } catch (e) {
+    alert("Image error");
   }
+}
 
   const headerTitle =
     mode === "recruitment"

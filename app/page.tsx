@@ -40,7 +40,6 @@ const JOB_STEPS = [
   { key: "salary", q: "မျှော်မှန်းလစာ (MMK)?" },
   { key: "availability", q: "အလုပ်စတင်နိုင်မယ့်ရက် (ဥပမာ ချက်ချင်း / 1 week)?" },
 ];
-
 const HIRE_STEPS = [
   { key: "biz", q: "လုပ်ငန်းအမည် (Business Name)?" },
   { key: "phone", q: "ဆက်သွယ်ရန်ဖုန်းနံပါတ်?" },
@@ -88,14 +87,22 @@ export default function Page() {
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [activePersona, setActivePersona] = useState<PersonaKey>("taurus");
 
-  // Theme
-  const [theme, setTheme] = useState<ThemeMode>("light");
-  useEffect(() => {
-  if (theme === "dark") {
-    document.documentElement.classList.add("dark");
-  } else {
-    document.documentElement.classList.remove("dark");
-  }
+// Theme
+const [theme, setTheme] = useState<ThemeMode>("light");
+
+// Theme restore (1 time)
+useEffect(() => {
+  const saved = localStorage.getItem(LS_THEME) as ThemeMode | null;
+  setTheme(saved === "dark" ? "dark" : "light");
+}, []);
+
+// Apply theme to <html> + persist
+useEffect(() => {
+  const root = document.documentElement;
+  const isDark = theme === "dark";
+  root.classList.toggle("dark", isDark);
+  root.style.colorScheme = isDark ? "dark" : "light";
+  localStorage.setItem(LS_THEME, theme);
 }, [theme]);
 
   // Auth state (Supabase)

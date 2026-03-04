@@ -19,9 +19,8 @@ type Mode = "chat" | "recruitment";
 type IntakeKind = "job" | "hire";
 
 const OWNER_EMAIL = "koheinkhantko51@gmail.com";
-
-// Theme localStorage
 const LS_THEME = "taurus_theme";
+const LS_DEVICE = "taurus_device_id";
 
 const PERSONAS: { key: PersonaKey; title: string; subtitle: string; tone: string }[] = [
   { key: "taurus", title: "TAURUS AI", subtitle: "All Answers (Main)", tone: "Professional" },
@@ -83,144 +82,64 @@ function normalizeYesNo(s: string) {
 type ThemeMode = "light" | "dark";
 
 export default function Page() {
-  // -------- UI state --------
   const [menuOpen, setMenuOpen] = useState(false);
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [activePersona, setActivePersona] = useState<PersonaKey>("taurus");
-
-  const [tcOpen, setTcOpen] = useState(false);
-const [settingsOpen, setSettingsOpen] = useState(false);
-const [securityOpen, setSecurityOpen] = useState(false);
-const [employerOpen, setEmployerOpen] = useState(false);
-
-  // 👉 Image Modal State
-const [imageModalOpen, setImageModalOpen] = useState(false);
-const [imagePrompt, setImagePrompt] = useState("");
-const [imageErr, setImageErr] = useState<string | null>(null);
-
-// Theme
-const [theme, setTheme] = useState<ThemeMode>("light");
-
-// Theme restore (1 time)
-useEffect(() => {
-  const saved = localStorage.getItem(LS_THEME) as ThemeMode | null;
-  setTheme(saved === "dark" ? "dark" : "light");
-}, []);
-
-// Apply theme to <html> + persist
-useEffect(() => {
-  const root = document.documentElement;
-  const isDark = theme === "dark";
-  root.classList.toggle("dark", isDark);
-  root.style.colorScheme = isDark ? "dark" : "light";
-  localStorage.setItem(LS_THEME, theme);
-}, [theme]);
-
-const LS_DEVICE = "taurus_device_id";
-
-useEffect(() => {
-  try {
-    const existing = localStorage.getItem(LS_DEVICE);
-    if (!existing) {
-      const id = crypto.randomUUID();
-      localStorage.setItem(LS_DEVICE, id);
-    }
-  } catch {}
-}, []);
-
-async function createImage(prompt: string) {
-
-  const deviceId = localStorage.getItem(LS_DEVICE) || "unknown";
-
-  const { data } = await supabase.auth.getSession();
-  const accessToken = data?.session?.access_token || null;
-
-  const res = await fetch("/api/image", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-    body: JSON.stringify({ prompt, deviceId }),
-  });
-
-  const dataRes = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(String(dataRes?.error ?? "Image create failed"));
-
-  return dataRes as { url: string };
-}
-
-  // Auth state (Supabase)
+  const [theme, setTheme] = useState<ThemeMode>("light");
   const [authed, setAuthed] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: "free" | "pro" | "plus" } | null>(null);
-
-
-
-  // Chat
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-
-  // Recruitment mode (Intake)
   const [mode, setMode] = useState<Mode>("chat");
   const [intakeKind, setIntakeKind] = useState<IntakeKind | null>(null);
   const [intake, setIntake] = useState<Record<string, any>>({});
   const [awaitingSubmit, setAwaitingSubmit] = useState(false);
 
-  // Scroll anchor
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Theme restore
+  // Device ID Init
   useEffect(() => {
-    const saved = (typeof window !== "undefined" ? (localStorage.getItem(LS_THEME) as ThemeMode | null) : null) ?? "light";
-    setTheme(saved === "dark" ? "dark" : "light");
+    try {
+      const existing = localStorage.getItem(LS_DEVICE);
+      if (!existing) {
+        const id = crypto.randomUUID();
+        localStorage.setItem(LS_DEVICE, id);
+      }
+    } catch {}
   }, []);
 
-  // Apply theme to <html>
+  // Theme logic
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark");
-    else root.classList.remove("dark");
-    try {
-      localStorage.setItem(LS_THEME, theme);
-    } catch {}
+    const saved = localStorage.getItem(LS_THEME) as ThemeMode | null;
+    if (saved) setTheme(saved);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    localStorage.setItem(LS_THEME, theme);
   }, [theme]);
 
-  // ✅ Supabase session restore + realtime auth updates
+  // Auth logic
   useEffect(() => {
     let mounted = true;
-
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       const session = data.session;
-
       if (session) {
         const meta: any = session.user.user_metadata || {};
         setAuthed(true);
-        setUser({
-          name: meta.full_name || meta.name || "User",
-          email: session.user.email || "",
-          role: "free",
-        });
-      } else {
-        setAuthed(false);
-        setUser(null);
+        setUser({ name: meta.full_name || meta.name || "User", email: session.user.email || "", role: "free" });
       }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
-
       if (session) {
         const meta: any = session.user.user_metadata || {};
         setAuthed(true);
-        setUser({
-          name: meta.full_name || meta.name || "User",
-          email: session.user.email || "",
-          role: "free",
-        });
+        setUser({ name: meta.full_name || meta.name || "User", email: session.user.email || "", role: "free" });
       } else {
         setAuthed(false);
         setUser(null);
@@ -240,12 +159,48 @@ async function createImage(prompt: string) {
   const personaInfo = useMemo(() => PERSONAS.find((p) => p.key === activePersona)!, [activePersona]);
   const badge = useMemo(() => getBadge(user?.email, user?.role), [user]);
 
-  // -------- Auth actions --------
-  async function signInWithGoogle() {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
+  // --- Image Functions ---
+  async function createImage(prompt: string): Promise<{ url: string }> {
+    const deviceId = localStorage.getItem(LS_DEVICE) || "unknown";
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data?.session?.access_token || null;
+
+    const res = await fetch("/api/image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify({ prompt, deviceId }),
     });
+
+    const dataRes = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(String(dataRes?.error ?? "Image create failed"));
+    return dataRes as { url: string };
+  }
+
+  async function photoCreate() {
+    const prompt = window.prompt("ဘယ်လိုပုံမျိုး ဆွဲချင်ပါသလဲ?");
+    if (!prompt || !prompt.trim()) return;
+
+    setSending(true);
+    try {
+      const res = await createImage(prompt);
+      if (res && res.url) {
+        const aiMsg: Msg = { id: uid(), role: "ai", text: `![AI_PHOTO](${res.url})`, ts: Date.now() };
+        setMessages((prev) => [...prev, aiMsg]);
+      }
+    } catch (err: any) {
+      const errMsg: Msg = { id: uid(), role: "ai", text: `❌ Error: ${err.message}`, ts: Date.now() };
+      setMessages((prev) => [...prev, errMsg]);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // --- Actions ---
+  async function signInWithGoogle() {
+    await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
   }
 
   async function logout() {
@@ -261,7 +216,6 @@ async function createImage(prompt: string) {
     setUser(null);
   }
 
-  // -------- helpers --------
   function endChat() {
     setMessages([]);
     setAwaitingSubmit(false);
@@ -281,54 +235,20 @@ async function createImage(prompt: string) {
     setAwaitingSubmit(false);
     setChoiceOpen(false);
     setMenuOpen(false);
-
     const firstQ = kind === "job" ? JOB_STEPS[0].q : HIRE_STEPS[0].q;
     setMessages([{ id: uid(), role: "ai", text: `✅ Register Mode\n\n${firstQ}`, ts: Date.now() }]);
   }
 
   async function switchPersona(next: PersonaKey) {
     if (next === activePersona) return;
-
     if (messages.length > 0) {
-      const ok = window.confirm("End current chat and switch AI?");
-      if (!ok) return;
+      if (!window.confirm("End current chat and switch AI?")) return;
       endChat();
     }
-
     resetIntake();
     setActivePersona(next);
     setChoiceOpen(false);
     setMenuOpen(false);
-  }
-
-  function autoGrowTextarea(el: HTMLTextAreaElement) {
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
-  }
-
-  async function submitIntake(payload: any) {
-    const res = await fetch("/api/intake", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error("Submit failed");
-    return res.json().catch(() => ({}));
-  }
-
-  function nextMissingStep(kind: IntakeKind, data: Record<string, any>) {
-    const steps = kind === "job" ? JOB_STEPS : HIRE_STEPS;
-    return steps.find((s) => data[s.key] == null || String(data[s.key]).trim() === "") ?? null;
-  }
-
-  function buildIntakePayload(kind: IntakeKind, data: Record<string, any>) {
-    return {
-      kind,
-      createdAt: Date.now(),
-      source: "taurus_web",
-      user: user ? { name: user.name, email: user.email, role: user.role } : { guest: true },
-      data,
-    };
   }
 
   async function sendMessage() {
@@ -340,96 +260,45 @@ async function createImage(prompt: string) {
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
-    // Recruitment mode: step-based intake
     if (mode === "recruitment" && intakeKind) {
       const yn = awaitingSubmit ? normalizeYesNo(text) : null;
-
       if (awaitingSubmit) {
         if (yn === "no") {
-          setMessages((m) => [
-            ...m,
-            {
-              id: uid(),
-              role: "ai",
-              text: "❌ Cancel လုပ်ပြီးပါပြီ။ Register Mode မှ ထွက်ပြီး normal chat ပြန်သွားပါမယ်။",
-              ts: Date.now(),
-            },
-          ]);
+          setMessages((m) => [...m, { id: uid(), role: "ai", text: "❌ Cancel လုပ်ပြီးပါပြီ။", ts: Date.now() }]);
           resetIntake();
           return;
         }
-
         if (yn === "yes") {
           setSending(true);
           try {
-            const payload = buildIntakePayload(intakeKind, intake);
-            await submitIntake(payload);
-
-            setMessages((m) => [
-              ...m,
-              {
-                id: uid(),
-                role: "ai",
-                text:
-                  "✅ Submit အောင်မြင်ပါတယ်။\n\nကျေးဇူးတင်ပါတယ်။ Owner (Admin) က review လုပ်ပြီး မကြာခင် ဆက်သွယ်ပေးပါမယ်။\n\nRegister Mode ထွက်ပြီး normal chat ပြန်သွားပါမယ်။",
-                ts: Date.now(),
-              },
-            ]);
+            await fetch("/api/intake", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: intakeKind, data: intake }) });
+            setMessages((m) => [...m, { id: uid(), role: "ai", text: "✅ Submit အောင်မြင်ပါတယ်။", ts: Date.now() }]);
             resetIntake();
           } catch {
-            setMessages((m) => [
-              ...m,
-              {
-                id: uid(),
-                role: "ai",
-                text:
-                  "⚠️ Submit မအောင်မြင်ပါ။ Network/Server ပြဿနာဖြစ်နိုင်ပါတယ်။\n\nYES လို့ ပြန်ပို့ပြီး ထပ်ကြိုးစားလို့ရပါတယ်။ မလိုတော့ရင် NO လို့ပို့ပါ။",
-                ts: Date.now(),
-              },
-            ]);
-          } finally {
-            setSending(false);
-          }
+            setMessages((m) => [...m, { id: uid(), role: "ai", text: "⚠️ Error occurred. Try again.", ts: Date.now() }]);
+          } finally { setSending(false); }
           return;
         }
-
-        setMessages((m) => [
-          ...m,
-          { id: uid(), role: "ai", text: "Submit လုပ်မလား? (YES / NO) လို့ပဲ ပြန်ပို့ပေးပါ။", ts: Date.now() },
-        ]);
-        return;
-      }
-
-      const missing = nextMissingStep(intakeKind, intake);
-      if (!missing) {
-        setAwaitingSubmit(true);
         setMessages((m) => [...m, { id: uid(), role: "ai", text: "Submit လုပ်မလား? (YES / NO)", ts: Date.now() }]);
         return;
       }
 
-      const updated = { ...intake, [missing.key]: text };
-      setIntake(updated);
-
-      const next = nextMissingStep(intakeKind, updated);
-      if (next) {
-        setMessages((m) => [...m, { id: uid(), role: "ai", text: next.q, ts: Date.now() }]);
-      } else {
-        setAwaitingSubmit(true);
-
-        const summary =
-          intakeKind === "job"
-            ? `🧾 Summary (Job Seeker)\n• Name: ${updated.name ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• City: ${updated.city ?? "-"}\n• Exp: ${updated.exp ?? "-"}\n• Salary: ${updated.salary ?? "-"}\n• Start: ${updated.availability ?? "-"}`
-            : `🧾 Summary (Employer)\n• Business: ${updated.biz ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• Position: ${updated.position ?? "-"}\n• Salary: ${updated.salary_range ?? "-"}\n• Commission: ${updated.commission ?? "-"}\n• Hours: ${updated.hours ?? "-"}\n• Location: ${updated.location ?? "-"}\n• Urgency: ${updated.urgency ?? "-"}`;
-
-        setMessages((m) => [
-          ...m,
-          { id: uid(), role: "ai", text: `${summary}\n\nSubmit လုပ်မလား? (YES / NO)`, ts: Date.now() },
-        ]);
+      const steps = intakeKind === "job" ? JOB_STEPS : HIRE_STEPS;
+      const missing = steps.find((s) => intake[s.key] == null);
+      if (missing) {
+        const updated = { ...intake, [missing.key]: text };
+        setIntake(updated);
+        const nextStep = steps.find((s) => updated[s.key] == null);
+        if (nextStep) {
+          setMessages((m) => [...m, { id: uid(), role: "ai", text: nextStep.q, ts: Date.now() }]);
+        } else {
+          setAwaitingSubmit(true);
+          setMessages((m) => [...m, { id: uid(), role: "ai", text: "အချက်အလက်တွေ ပြည့်စုံပါပြီ။ Submit လုပ်မလား? (YES/NO)", ts: Date.now() }]);
+        }
       }
       return;
     }
 
-    // normal chat mode
     setSending(true);
     try {
       const res = await fetch("/api/chat", {
@@ -437,919 +306,114 @@ async function createImage(prompt: string) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, persona: activePersona }),
       });
-
-      const data = await res.json().catch(() => ({}));
-      const replyText = String(data?.reply ?? data?.error ?? "No response");
-
-      const aiMsg: Msg = { id: uid(), role: "ai", text: replyText, ts: Date.now() };
-      setMessages((m) => [...m, aiMsg]);
+      const data = await res.json();
+      setMessages((m) => [...m, { id: uid(), role: "ai", text: String(data?.reply || "No response"), ts: Date.now() }]);
     } catch {
-      const aiMsg: Msg = { id: uid(), role: "ai", text: "Network error. Please try again.", ts: Date.now() };
-      setMessages((m) => [...m, aiMsg]);
-    } finally {
-      setSending(false);
-    }
+      setMessages((m) => [...m, { id: uid(), role: "ai", text: "Network error.", ts: Date.now() }]);
+    } finally { setSending(false); }
   }
 
- function photoCreate() {
-  setImageErr(null);
-  setImagePrompt("");
-  setImageModalOpen(true);
-}
+  const headerTitle = mode === "recruitment" ? (intakeKind === "job" ? "Job Registration" : "Employer Request") : personaInfo.title;
 
-  const headerTitle =
-    mode === "recruitment"
-      ? intakeKind === "job"
-        ? "Taurus Match — Job Registration"
-        : "Taurus Match — Employer Request"
-      : personaInfo.title;
-
-  const headerSubtitle = mode === "recruitment" ? "Structured registration • Submit to Admin" : personaInfo.subtitle;
-
-  // -------- UI --------
   return (
-    <main className="min-h-[100dvh] bg-white dark:bg-black">
-      {/* Subtle glass background tint (no wallpaper, no global stars) */}
+    <main className="min-h-[100dvh] bg-white dark:bg-black relative">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(16,185,129,0.05),transparent_55%)] dark:bg-[radial-gradient(circle_at_50%_10%,rgba(255,255,255,0.06),transparent_55%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_85%,rgba(16,185,129,0.03),transparent_60%)] dark:bg-[radial-gradient(circle_at_15%_85%,rgba(255,255,255,0.04),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_80%,rgba(0,0,0,0.03),transparent_60%)] dark:bg-[radial-gradient(circle_at_85%_80%,rgba(0,0,0,0.25),transparent_60%)]" />
       </div>
 
-      {/* Header */}
       <header className="relative z-10 px-4 pt-4">
-        <div className="mx-auto max-w-[980px]">
-          <div className="flex items-center justify-between">
-            {/* Taurus badge */}
-            <div className="flex items-center gap-3">
-              <TaurusBadge />
-              <div className="leading-tight">
-                <div className="text-[12px] text-zinc-500 dark:text-zinc-400">Beta</div>
-                <div className="text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">{headerTitle}</div>
-              </div>
-            </div>
-
-            {/* Right: user + menu */}
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2">
-                {user ? (
-                  <div className="flex items-center">
-                    <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">{user.name}</span>
-                    {badge ? <UserBadge icon={badge.icon} label={badge.label} kind={badge.kind} /> : null}
-                  </div>
-                ) : (
-                  <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Guest Mode</span>
-                )}
-              </div>
-
-              <button
-                onClick={() => setMenuOpen(true)}
-                className={classNames(
-                  "h-10 w-10 rounded-2xl border bg-white/60 backdrop-blur-xl",
-                  "shadow-[0_8px_30px_rgba(16,185,129,0.08)] flex items-center justify-center",
-                  "border-emerald-200/60 dark:border-white/15 dark:bg-zinc-900/55 dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
-                )}
-                aria-label="Menu"
-              >
-                <div className="space-y-[4px]">
-                  <div className="h-[2px] w-[18px] bg-emerald-700/70 dark:bg-white/80 rounded-full" />
-                  <div className="h-[2px] w-[18px] bg-emerald-700/55 dark:bg-white/60 rounded-full" />
-                  <div className="h-[2px] w-[18px] bg-emerald-700/40 dark:bg-white/40 rounded-full" />
-                </div>
-              </button>
-            </div>
+        <div className="mx-auto max-w-[980px] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+             <div className="h-10 w-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-bold">T</div>
+             <div>
+               <div className="text-[12px] text-zinc-500">Beta</div>
+               <div className="text-[14px] font-semibold dark:text-white">{headerTitle}</div>
+             </div>
           </div>
-
-          {/* ✅ Gmail banner REMOVED from main header (moved into Security modal) */}
+          <button onClick={() => setMenuOpen(true)} className="h-10 w-10 rounded-2xl border bg-white/60 dark:bg-zinc-900/55 flex items-center justify-center">
+             ☰
+          </button>
         </div>
       </header>
 
-      {/* Chat area */}
-      <section className="relative z-10 px-4 pb-[92px]">
+      <section className="relative z-10 px-4 pb-[100px] mt-4">
         <div className="mx-auto max-w-[980px]">
-          <div
-            className={classNames(
-              "mt-4 rounded-3xl border bg-white/60 backdrop-blur-2xl",
-              "shadow-[0_12px_60px_rgba(16,185,129,0.09)]",
-              "border-emerald-200/55 dark:border-white/15 dark:bg-zinc-900/55 dark:shadow-[0_12px_60px_rgba(0,0,0,0.40)]"
-            )}
-          >
-            <div className="px-4 py-3 border-b border-emerald-200/35 dark:border-white/10 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">{headerTitle}</span>
-                <span className="text-[12px] text-zinc-500 dark:text-zinc-400">• {headerSubtitle}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {mode === "recruitment" ? (
-                  <button
-                    onClick={() => {
-                      const ok = window.confirm("Exit Register Mode?");
-                      if (ok) {
-                        endChat();
-                        resetIntake();
-                      }
-                    }}
-                    className={classNames(
-                      "text-[12px] px-3 py-1.5 rounded-full border backdrop-blur-xl",
-                      "border-emerald-200/70 text-emerald-800 bg-white/55 hover:bg-white/70",
-                      "dark:border-white/15 dark:text-white dark:bg-zinc-900/55 dark:hover:bg-zinc-900/70"
-                    )}
-                  >
-                    Exit
-                  </button>
-                ) : null}
-
-                <button
-                  onClick={() => {
-                    if (messages.length === 0) return;
-                    const ok = window.confirm("End this chat?");
-                    if (ok) endChat();
-                  }}
-                  className={classNames(
-                    "text-[12px] px-3 py-1.5 rounded-full border backdrop-blur-xl",
-                    messages.length === 0
-                      ? "border-zinc-200/60 text-zinc-400 bg-white/40 cursor-not-allowed dark:border-white/10 dark:text-white/35 dark:bg-zinc-900/35"
-                      : "border-emerald-200/70 text-emerald-800 bg-white/55 hover:bg-white/70 dark:border-white/15 dark:text-white dark:bg-zinc-900/55 dark:hover:bg-zinc-900/70"
-                  )}
-                  disabled={messages.length === 0}
-                >
-                  End Chat
-                </button>
-              </div>
-            </div>
-
-            <div className="h-[60dvh] md:h-[62dvh] overflow-y-auto px-4 py-4">
-              {messages.length === 0 ? (
-                <EmptyState
-                  personaTitle={personaInfo.title}
-                  subtitle={personaInfo.subtitle}
-                  onChoice={() => setChoiceOpen(true)}
-                  onStartJob={() => startIntake("job")}
-                  onStartHire={() => startIntake("hire")}
-                />
-              ) : (
-                <div className="space-y-3">
-                  {messages.map((m) => (
-                    <MessageBubble key={m.id} role={m.role} text={m.text} />
-                  ))}
-                  <div ref={bottomRef} />
+          <div className="rounded-3xl border bg-white/60 dark:bg-zinc-900/55 dark:border-white/10 min-h-[60dvh] p-4 overflow-y-auto">
+            {messages.length === 0 ? (
+              <div className="text-center py-20">
+                <h2 className="text-2xl font-bold dark:text-white">Mingalaba!</h2>
+                <p className="text-zinc-500 mt-2">{personaInfo.subtitle}</p>
+                <div className="mt-6 flex flex-wrap justify-center gap-2">
+                   <button onClick={() => setChoiceOpen(true)} className="px-4 py-2 bg-emerald-500 text-white rounded-full">Choose AI</button>
+                   <button onClick={() => startIntake("job")} className="px-4 py-2 border dark:text-white rounded-full">Find Job</button>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((m) => (
+                  <div key={m.id} className={classNames("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+                    <div className={classNames("max-w-[80%] px-4 py-2 rounded-2xl", m.role === "user" ? "bg-emerald-500 text-white" : "bg-zinc-100 dark:bg-zinc-800 dark:text-white text-zinc-900")}>
+                      {m.text.startsWith("![AI_PHOTO]") ? (
+                        <img src={m.text.match(/\((.*?)\)/)?.[1]} alt="AI" className="rounded-lg max-w-full" />
+                      ) : (
+                        <p className="whitespace-pre-wrap">{m.text}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <div ref={bottomRef} />
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Input bar fixed bottom */}
-      <footer className="fixed bottom-0 left-0 right-0 z-20 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3">
-        <div className="mx-auto max-w-[980px]">
-          <div
-            className={classNames(
-              "rounded-3xl border bg-white/70 backdrop-blur-2xl px-3 py-3",
-              "shadow-[0_12px_50px_rgba(16,185,129,0.10)]",
-              "border-emerald-200/60 dark:border-white/15 dark:bg-zinc-900/55 dark:shadow-[0_12px_50px_rgba(0,0,0,0.40)]"
-            )}
-          >
-            <div className="flex items-end gap-2">
-              {mode === "recruitment" ? (
-                <button
-                  onClick={() => {
-                    const ok = window.confirm("Restart this registration?");
-                    if (!ok) return;
-                    if (intakeKind) startIntake(intakeKind);
-                  }}
-                  className={classNames(
-                    "h-11 w-11 rounded-2xl border bg-white/65 backdrop-blur-xl flex items-center justify-center text-[16px]",
-                    "border-emerald-200/70 dark:border-white/15 dark:bg-zinc-900/55"
-                  )}
-                  aria-label="Restart"
-                  title="Restart registration"
-                >
-                  ↻
-                </button>
-              ) : (
-                <button
-                  onClick={photoCreate}
-                  className={classNames(
-                    "h-11 w-11 rounded-2xl border bg-white/65 backdrop-blur-xl flex items-center justify-center text-[18px]",
-                    "border-emerald-200/70 dark:border-white/15 dark:bg-zinc-900/55"
-                  )}
-                  aria-label="Photo Create"
-                  title="Photo Create (Coming Soon)"
-                >
-                  📷
-                </button>
-              )}
-
-              <div className="flex-1">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    autoGrowTextarea(e.currentTarget);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  placeholder={mode === "recruitment" ? "အဖြေကိုရေးပြီး Enter နှိပ်ပါ…" : "Type a message…"}
-                  className={classNames(
-                    "w-full resize-none rounded-2xl border px-4 py-3 text-[14px] outline-none",
-                    "border-emerald-200/60 bg-white/75 focus:border-emerald-300/80",
-                    "dark:border-white/15 dark:bg-zinc-950/35 dark:text-white dark:placeholder-white/35 dark:focus:border-white/25"
-                  )}
-                  rows={1}
-                />
-                <div className="mt-1 flex items-center justify-between px-1">
-                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {mode === "recruitment" ? "Register Mode • Structured intake" : "Glass • Minimal • Accent only"}
-                  </span>
-                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{sending ? "Thinking…" : " "}</span>
-                </div>
-              </div>
-
-              <button
-                onClick={sendMessage}
-                disabled={!input.trim() || sending}
-                className={classNames(
-                  "h-11 px-4 rounded-2xl border backdrop-blur-xl text-[13px] font-semibold",
-                  !input.trim() || sending
-                    ? "border-zinc-200/70 bg-white/55 text-zinc-400 cursor-not-allowed dark:border-white/10 dark:bg-zinc-900/35 dark:text-white/35"
-                    : "border-emerald-200/80 bg-white/75 text-emerald-800 hover:bg-white/90 dark:border-white/15 dark:bg-zinc-900/55 dark:text-white dark:hover:bg-zinc-900/70"
-                )}
-              >
-                Send
-              </button>
-            </div>
-          </div>
+      <footer className="fixed bottom-0 left-0 right-0 z-20 p-4">
+        <div className="mx-auto max-w-[980px] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-3xl border dark:border-white/10 p-2 flex items-end gap-2">
+          <button onClick={photoCreate} className="h-11 w-11 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xl">📷</button>
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type here..."
+            className="flex-1 bg-transparent border-none outline-none py-2 px-2 dark:text-white resize-none max-h-32"
+            rows={1}
+          />
+          <button onClick={sendMessage} disabled={!input.trim() || sending} className="h-11 px-6 bg-emerald-500 text-white rounded-2xl font-bold disabled:opacity-50">
+            {sending ? "..." : "Send"}
+          </button>
         </div>
       </footer>
 
-      {/* Menu Drawer */}
-      {menuOpen ? (
-        <div className="fixed inset-0 z-30">
-          <div className="absolute inset-0 bg-black/15 dark:bg-black/40" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-         <aside className="absolute right-0 top-0 h-full w-[86%] max-w-[380px] bg-white/75 dark:bg-zinc-950/70 backdrop-blur-2xl border-l border-emerald-200/60 dark:border-white/12 shadow-[0_0_60px_rgba(16,185,129,0.12)] dark:shadow-[0_0_70px_rgba(0,0,0,0.55)]">
-  <div className="h-full overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+20px)]">
-    ...
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <TaurusBadge small />
-                  <div>
-                    <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Menu</div>
-                    <div className="text-[12px] text-zinc-500 dark:text-zinc-400">Clean • Minimal • Glass</div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  className="h-10 w-10 rounded-2xl border border-emerald-200/70 dark:border-white/15 bg-white/70 dark:bg-zinc-900/55 backdrop-blur-xl"
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/20" onClick={() => setMenuOpen(false)} />
+          <aside className="relative w-80 bg-white dark:bg-zinc-900 h-full p-6 shadow-xl overflow-y-auto">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="font-bold text-xl dark:text-white">Menu</h3>
+              <button onClick={() => setMenuOpen(false)}>✕</button>
+            </div>
+            <div className="space-y-4">
+              <button onClick={() => setTheme(theme === "light" ? "dark" : "light")} className="w-full text-left py-2 dark:text-white">
+                {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+              </button>
+              <div className="border-t dark:border-white/10 pt-4">
+                <p className="text-xs text-zinc-500 mb-2">Switch AI Assistant</p>
+                {PERSONAS.map(p => (
+                  <button key={p.key} onClick={() => switchPersona(p.key)} className={classNames("w-full text-left py-2 px-3 rounded-lg mb-1", activePersona === p.key ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600" : "dark:text-white")}>
+                    {p.title}
+                  </button>
+                ))}
               </div>
-
-              {/* Quick actions */}
-              <div className="mt-4 space-y-2">
-                <GlassButton onClick={() => startIntake("job")} title="Job Seeker Register">
-                  Request Job (Register)
-                </GlassButton>
-                <GlassButton onClick={() => startIntake("hire")} title="Employer Request" subtle>
-                  Request Employee (Register)
-                </GlassButton>
-              </div>
-
-              {/* Account block */}
-              <div className="mt-4 rounded-2xl border border-emerald-200/60 dark:border-white/15 bg-white/65 dark:bg-zinc-900/55 backdrop-blur-xl p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[12px] text-zinc-500 dark:text-zinc-400">Account</div>
-                    {user ? (
-                      <div className="mt-1">
-                        <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">{user.name}</div>
-                        <div className="text-[12px] text-zinc-500 dark:text-zinc-400">{user.email}</div>
-                      </div>
-                    ) : (
-                      <div className="mt-1 text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Guest</div>
-                    )}
-                  </div>
-                  <div className="text-right">{badge ? <UserBadge icon={badge.icon} label={badge.label} kind={badge.kind} /> : null}</div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-1 gap-2">
-                  {!authed ? (
-                    <GlassButton onClick={signInWithGoogle} title="Sign in with Google (Supabase OAuth)">
-                      Sign in with Google
-                    </GlassButton>
-                  ) : (
-                    <GlassButton onClick={logout} title="Logout" subtle>
-                      Logout
-                    </GlassButton>
-                  )}
-
-                  <GlassButton onClick={continueGuest} subtle>
-                    Continue as Guest
-                  </GlassButton>
-                </div>
-
-                {/* ✅ Gmail text removed from Menu; moved to Security modal */}
-                <div className="mt-3 text-[11px] text-zinc-600 dark:text-zinc-400">
-                  Tip: Security & Privacy details are in <span className="font-semibold">Settings</span>.
-                </div>
-              </div>
-
-              {/* ✅ DUPLICATE buttons removed:
-                  - Choice AI Assistant
-                  - End Chat & Choose AI
-                  (Main screen already has Choice AI Assistant) */}
-
-              {/* Primary actions */}
-              <div className="mt-4 space-y-2">
-                <GlassButton onClick={photoCreate}>Photo Create (Coming Soon)</GlassButton>
-
-                <ComingSoonItem label="History (Coming Soon)" />
-                <ComingSoonItem label="Pro / Plus (Coming Soon)" />
-                <ComingSoonItem label="TON Tools (Coming Soon)" />
-                <ComingSoonItem label="Next Level Roadmap (Coming Soon)" />
-                <ComingSoonItem label="Custom Local Shop Database (Coming Soon)" />
-                <ComingSoonItem label="Google Map Shop Tracker (Coming Soon)" />
-              </div>
-
-              {/* Persona shortcuts */}
-              <div className="mt-5">
-                <div className="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">Persona Shortcuts</div>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {PERSONAS.filter((p) => p.key !== "friend").map((p) => (
-                    <GlassButton key={p.key} onClick={() => switchPersona(p.key)} subtle={p.key !== activePersona}>
-                      <div className="flex items-center justify-between w-full">
-                        <span className="text-[13px] font-semibold">{p.title}</span>
-                        <span className="text-[12px] text-zinc-500 dark:text-zinc-400">{p.tone}</span>
-                      </div>
-                    </GlassButton>
-                  ))}
-                </div>
-              </div>
-
-              {/* Legal / Settings */}
-              <div className="mt-5 space-y-2">
-
-      <Link href="/terms">
-  <GlassButton subtle onClick={() => setMenuOpen(false)}>
-    T&C
-  </GlassButton>
-</Link>
-
-    <Link href="/employer">
-  <GlassButton subtle onClick={() => setMenuOpen(false)}>
-    Employer Agreement
-  </GlassButton>
-</Link>
-                <GlassButton
-                  onClick={() => {
-                    setSettingsOpen(true);
-                    setMenuOpen(false);
-                  }}
-                  subtle
-                >
-                  Settings
-                </GlassButton>
-
-                <div className="pt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Founder: <span className="font-semibold text-zinc-800 dark:text-zinc-100">Khant Ko Ko Hein</span>
-                </div>
-              </div>
+              {!authed ? (
+                <button onClick={signInWithGoogle} className="w-full py-3 bg-blue-600 text-white rounded-xl mt-4">Sign in with Google</button>
+              ) : (
+                <button onClick={logout} className="w-full py-3 border border-red-200 text-red-500 rounded-xl mt-4">Logout</button>
+              )}
             </div>
           </aside>
         </div>
-      ) : null}
-
-      {/* Choice AI Assistant Overlay */}
-      {choiceOpen ? (
-        <ModalShell title="Choice AI Assistant" onClose={() => setChoiceOpen(false)}>
-          <div className="grid grid-cols-1 gap-3">
-            {PERSONAS.map((p) => (
-              <button
-                key={p.key}
-                onClick={() => switchPersona(p.key)}
-                className={classNames(
-                  "w-full text-left rounded-3xl border bg-white/70 dark:bg-zinc-900/55 backdrop-blur-2xl px-4 py-4",
-                  p.key === activePersona ? "border-emerald-300/75 dark:border-white/20" : "border-emerald-200/55 dark:border-white/12"
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[14px] font-extrabold text-zinc-900 dark:text-zinc-100">{p.title}</div>
-                    <div className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-1">{p.subtitle}</div>
-                  </div>
-                  <span className="text-[12px] text-zinc-500 dark:text-zinc-400">{p.tone}</span>
-                </div>
-                <div className="mt-3 text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Tap to start a new chat. If you have an active chat, End Chat confirmation will appear.
-                </div>
-              </button>
-            ))}
-          </div>
-        </ModalShell>
-      ) : null}
-
-      {/* T&C Sheet */}
-      {tcOpen ? (
-        <ModalShell title="Terms & Conditions" onClose={() => setTcOpen(false)}>
-          <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            <p className="font-semibold text-zinc-900 dark:text-zinc-100">TAURUS AI — Beta Terms</p>
-            <p>
-              Taurus AI is a beta product. Features may change without notice. We aim to provide accurate responses, but outputs may contain errors.
-              Use critical judgment for important decisions.
-            </p>
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Founder: Khant Ko Ko Hein</p>
-          </div>
-        </ModalShell>
-      ) : null}
-
-      {/* Settings Sheet */}
-      {settingsOpen ? (
-        <ModalShell title="Settings" onClose={() => setSettingsOpen(false)}>
-          <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            <SettingRow
-              title="Dark Mode"
-              desc="Glass style stays the same. Light = white glass. Dark = black glass + white borders."
-              right={
-                <button
-                  onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-                  className={classNames(
-                    "rounded-full px-3 py-1 text-[12px] font-semibold border backdrop-blur-xl",
-                    theme === "dark"
-                      ? "border-white/20 bg-zinc-900/55 text-white"
-                      : "border-emerald-200/70 bg-white/70 text-emerald-800"
-                  )}
-                >
-                  {theme === "dark" ? "Dark: ON" : "Dark: OFF"}
-                </button>
-              }
-            />
-
-            <SettingRow
-              title="Security & Privacy"
-              desc="Google login, data usage, and privacy notes."
-              actionLabel="Open"
-              onAction={() => {
-                setSecurityOpen(true);
-                setSettingsOpen(false);
-              }}
-            />
-
-            <SettingRow title="Security & Password" desc="(Coming Soon) Pattern/PIN lock + session security." />
-            <SettingRow title="Version Upgrade" desc="(Coming Soon) Provider upgrades + performance improvements." />
-            <SettingRow title="About" desc="TAURUS AI — Born in Myanmar. Built for the World." />
-          </div>
-        </ModalShell>
-      ) : null}
-
-      {/* ✅ Security Modal (moved Gmail text here) */}
-      {securityOpen ? (
-        <ModalShell title="Security & Privacy" onClose={() => setSecurityOpen(false)}>
-          <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            <div className="rounded-2xl border border-emerald-200/55 dark:border-white/12 bg-white/60 dark:bg-zinc-900/55 backdrop-blur-2xl p-4">
-              <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Google Login (OAuth)</div>
-              <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-                Sign in with Google is used to unlock enhanced security and advanced features.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-200/55 dark:border-white/12 bg-white/60 dark:bg-zinc-900/55 backdrop-blur-2xl p-4">
-              <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Gmail Content</div>
-              <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-                Taurus AI does <span className="font-semibold">not access</span> or <span className="font-semibold">store</span> your Gmail content.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-200/55 dark:border-white/12 bg-white/60 dark:bg-zinc-900/55 backdrop-blur-2xl p-4">
-              <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Data Use</div>
-              <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-                Your data is never sold or used for advertising. Beta features may change and logs/analytics may be used to improve stability.
-              </div>
-            </div>
-<div className="rounded-2xl border border-emerald-200/55 dark:border-white/12 bg-white/60 dark:bg-zinc-900/55 p-4">
-  <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
-    Privacy Notice
-  </div>
-
-  <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-    Taurus AI respects your privacy. We only store minimal technical data required 
-    to operate the service. Authentication is handled through Google OAuth and we 
-    do not access, read, or store your Gmail content.
-  </div>
-
-  <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-    Usage logs may be collected to improve system stability and security during 
-    the Beta phase. Your data is never sold or used for advertising.
-  </div>
-</div>
-            <div className="text-[12px] text-zinc-500 dark:text-zinc-400">
-              Founder: <span className="font-semibold text-zinc-800 dark:text-zinc-100">Khant Ko Ko Hein</span>
-            </div>
-          </div>
-        </ModalShell>
-      ) : null}
-          {/* Employer Agreement Modal */}
-      {employerOpen ? (
-        <ModalShell title="Employer Agreement" onClose={() => setEmployerOpen(false)}>
-          <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            <p className="font-semibold text-zinc-900 dark:text-zinc-100">Employer Agreement</p>
-
-            {/* ✅ မူရင်းစာသားကို ဒီထဲမှာထည့် (မူရင်းရေးထားတာ မပြောင်းချင်ရင် 그대로 paste) */}
-            <p>
-              (Put your Employer Agreement text here)
-            </p>
-
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-              Company Name: OMK Technologies Co., Ltd.
-            </p>
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-              Founder: Khant Ko Ko Hein
-            </p>
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-              Co-Founder: Moe Thazin Oo
-            </p>
-          </div>
-        </ModalShell>
-      ) : null}
-     {imageModalOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div className="w-[90%] max-w-md rounded-3xl bg-white/85 dark:bg-zinc-950/75 border border-white/20 p-5 shadow-xl backdrop-blur-2xl">
-      <h2 className="text-lg font-semibold mb-3 text-center text-zinc-900 dark:text-white">
-        Create Image
-      </h2>
-
-      <input
-        value={imagePrompt}
-        onChange={(e) => setImagePrompt(e.target.value)}
-        placeholder="Enter image prompt..."
-        className="w-full px-4 py-2 rounded-2xl bg-white/60 dark:bg-zinc-900/45 border border-white/20 text-zinc-900 dark:text-white placeholder-zinc-500 dark:placeholder-white/35 focus:outline-none focus:border-white/35"
-      />
-
-      {imageErr && (
-        <p className="text-red-500 text-sm mt-2 text-center">
-          {imageErr}
-        </p>
       )}
-
-      <div className="flex gap-3 mt-4">
-        <button
-          onClick={() => setImageModalOpen(false)}
-          className="flex-1 py-2 rounded-2xl border border-white/20 bg-white/55 dark:bg-zinc-900/45 text-zinc-800 dark:text-white hover:bg-white/70 dark:hover:bg-zinc-900/60"
-        >
-          Cancel
-        </button>
-<div className="flex gap-3">
-  <button
-    className="flex-1 py-2 rounded-2xl border border-white/30 bg-white/65 dark:bg-zinc-900/55 text-zinc-900 dark:text-white"
-    onClick={async () => {
-      if (!imagePrompt.trim()) {
-        setImageErr("Prompt required");
-        return;
-      }
-      try {
-        setImageErr(null);
-        const result = await createImage(imagePrompt);
-        window.open(result.url, "_blank");
-        setImageModalOpen(false);
-      } catch {
-        setImageErr("Image create failed");
-      }
-    }}
-  >
-    Create Image — Beta
-  </button>
-
-  <button
-    className="flex-1 py-2 rounded-2xl border border-white/20 opacity-60 cursor-not-allowed text-zinc-700 dark:text-zinc-300"
-    disabled
-  >
-    Advanced Image Generation
-    <span className="block text-[12px] opacity-80">Coming Soon</span>
-  </button>
-</div>
-      </div>
-    </div>
-  </div>
-)}
     </main>
-  );
-}
-
-/* ---------------- Components ---------------- */
-
-function TaurusBadge({ small }: { small?: boolean }) {
-  return (
-    <div
-      className={classNames(
-        "relative overflow-hidden rounded-2xl border bg-white/55 dark:bg-zinc-900/55 backdrop-blur-2xl",
-        "border-emerald-300/60 dark:border-white/18",
-        small ? "h-10 w-28" : "h-12 w-32"
-      )}
-      aria-label="TAURUS AI badge"
-      title="TAURUS AI"
-    >
-      <div className="absolute inset-0">
-        <TwinkleStars />
-      </div>
-      <div className="relative z-10 h-full w-full flex items-center justify-center">
-        <span
-          className={classNames(
-            "font-extrabold tracking-[0.18em] text-emerald-700/90 dark:text-white/90",
-            small ? "text-[11px]" : "text-[12px]"
-          )}
-        >
-          TAURUS AI
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function TwinkleStars() {
-  return (
-    <div className="absolute inset-0">
-      <span className="star s1" />
-      <span className="star s2" />
-      <span className="star s3" />
-      <span className="star s4" />
-      <span className="fall f1" />
-      <style jsx>{`
-        .star {
-          position: absolute;
-          width: 2px;
-          height: 2px;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.95);
-          box-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
-          opacity: 0.9;
-          animation: twinkle 1.8s infinite ease-in-out;
-        }
-        .s1 {
-          top: 28%;
-          left: 18%;
-          animation-delay: 0.1s;
-        }
-        .s2 {
-          top: 48%;
-          left: 55%;
-          animation-delay: 0.6s;
-          opacity: 0.75;
-        }
-        .s3 {
-          top: 22%;
-          left: 72%;
-          animation-delay: 1s;
-          opacity: 0.8;
-        }
-        .s4 {
-          top: 64%;
-          left: 32%;
-          animation-delay: 1.4s;
-          opacity: 0.7;
-        }
-
-        .fall {
-          position: absolute;
-          width: 26px;
-          height: 1px;
-          background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.95));
-          opacity: 0.65;
-          transform: rotate(-18deg);
-          animation: fall 3.2s infinite ease-in-out;
-          filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.18));
-        }
-        .f1 {
-          top: 18%;
-          left: -10%;
-        }
-
-        @keyframes twinkle {
-          0%,
-          100% {
-            transform: scale(0.9);
-            opacity: 0.55;
-          }
-          50% {
-            transform: scale(1.2);
-            opacity: 0.95;
-          }
-        }
-        @keyframes fall {
-          0% {
-            transform: translateX(-20%) translateY(0) rotate(-18deg);
-            opacity: 0;
-          }
-          15% {
-            opacity: 0.65;
-          }
-          55% {
-            opacity: 0.65;
-          }
-          100% {
-            transform: translateX(160%) translateY(40%) rotate(-18deg);
-            opacity: 0;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function UserBadge({ icon, label, kind }: { icon: string; label: string; kind: "owner" | "pro" | "free" }) {
-  const border =
-    kind === "owner"
-      ? "border-emerald-300/65 text-emerald-800 dark:border-white/20 dark:text-white"
-      : kind === "pro"
-      ? "border-emerald-300/55 text-emerald-800 dark:border-white/18 dark:text-white"
-      : "border-emerald-200/60 text-emerald-700 dark:border-white/15 dark:text-white/90";
-
-  return (
-    <span
-      className={classNames(
-        "ml-2 inline-flex items-center gap-1 rounded-full border bg-white/60 dark:bg-zinc-900/55 backdrop-blur-xl px-2 py-[2px] text-[11px] tracking-wide",
-        border
-      )}
-    >
-      <span className="text-[11px]">{icon}</span>
-      <span>{label}</span>
-    </span>
-  );
-}
-
-function GlassButton({
-  children,
-  onClick,
-  subtle,
-  title,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  subtle?: boolean;
-  title?: string;
-}) {
-  return (
-    <button
-      title={title}
-      onClick={onClick}
-      className={classNames(
-        "w-full rounded-2xl border backdrop-blur-2xl px-4 py-3 text-left transition",
-        subtle
-          ? "border-emerald-200/55 bg-white/55 hover:bg-white/70 dark:border-white/12 dark:bg-zinc-900/45 dark:hover:bg-zinc-900/60"
-          : "border-emerald-300/70 bg-white/70 hover:bg-white/90 dark:border-white/18 dark:bg-zinc-900/55 dark:hover:bg-zinc-900/70",
-        "shadow-[0_10px_35px_rgba(16,185,129,0.08)] dark:shadow-[0_10px_35px_rgba(0,0,0,0.40)]"
-      )}
-    >
-      <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">{children}</div>
-    </button>
-  );
-}
-
-function ComingSoonItem({ label }: { label: string }) {
-  return (
-    <div className="w-full rounded-2xl border border-zinc-200/70 dark:border-white/10 bg-white/45 dark:bg-zinc-900/35 backdrop-blur-xl px-4 py-3">
-      <div className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400">{label}</div>
-    </div>
-  );
-}
-
-function EmptyState({
-  personaTitle,
-  subtitle,
-  onChoice,
-  onStartJob,
-  onStartHire,
-}: {
-  personaTitle: string;
-  subtitle: string;
-  onChoice: () => void;
-  onStartJob: () => void;
-  onStartHire: () => void;
-}) {
-  return (
-    <div className="py-10 text-center">
-      <div className="text-[18px] font-extrabold text-zinc-900 dark:text-zinc-100">{personaTitle}</div>
-      <div className="mt-2 text-[13px] text-zinc-600 dark:text-zinc-400">{subtitle}</div>
-
-      <div className="mt-6 max-w-[560px] mx-auto text-[12px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
-        Messages are bottom-anchored. Input is fixed to the very bottom with safe-area support. Accent is used only as borders and small accents.
-      </div>
-
-      <div className="mt-6 flex flex-col gap-2 items-center">
-        <button
-          onClick={onStartJob}
-          className={classNames(
-            "w-full max-w-[360px] rounded-2xl border bg-white/70 dark:bg-zinc-900/55 backdrop-blur-2xl px-5 py-3",
-            "shadow-[0_12px_45px_rgba(16,185,129,0.10)] dark:shadow-[0_12px_45px_rgba(0,0,0,0.40)]",
-            "border-emerald-300/70 dark:border-white/18 text-[13px] font-semibold text-emerald-800 dark:text-white"
-          )}
-        >
-          အလုပ်လျှောက်မည် (Request Job)
-        </button>
-
-        <button
-          onClick={onStartHire}
-          className={classNames(
-            "w-full max-w-[360px] rounded-2xl border bg-white/55 dark:bg-zinc-900/45 backdrop-blur-2xl px-5 py-3",
-            "shadow-[0_12px_45px_rgba(16,185,129,0.08)] dark:shadow-[0_12px_45px_rgba(0,0,0,0.35)]",
-            "border-emerald-200/60 dark:border-white/12 text-[13px] font-semibold text-zinc-900 dark:text-zinc-100"
-          )}
-        >
-          ဝန်ထမ်းလိုသည် (Request Employee)
-        </button>
-
-        <button
-          onClick={onChoice}
-          className={classNames(
-            "mt-2 rounded-2xl border bg-white/55 dark:bg-zinc-900/45 backdrop-blur-2xl px-5 py-3",
-            "border-emerald-200/60 dark:border-white/12 text-[13px] font-semibold text-emerald-800 dark:text-white"
-          )}
-        >
-          Choice AI Assistant
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function MessageBubble({ role, text }: { role: "user" | "ai"; text: string }) {
-  const isUser = role === "user";
-  return (
-    <div className={classNames("flex", isUser ? "justify-end" : "justify-start")}>
-      <div
-        className={classNames(
-          "max-w-[86%] rounded-3xl px-4 py-3 border backdrop-blur-2xl",
-          "bg-white/75 dark:bg-zinc-950/35",
-          isUser ? "border-emerald-300/55 dark:border-white/18" : "border-emerald-200/45 dark:border-white/12"
-        )}
-      >
-        <div className="text-[14px] text-zinc-900 dark:text-zinc-100 leading-relaxed whitespace-pre-wrap">{text}</div>
-      </div>
-    </div>
-  );
-}
-
-function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-40">
-      <div className="absolute inset-0 bg-black/15 dark:bg-black/45" onClick={onClose} aria-hidden="true" />
-      <div className="absolute left-0 right-0 top-0 bottom-0 flex items-end sm:items-center justify-center p-4">
-        <div className="w-full max-w-[720px] rounded-3xl border border-emerald-200/65 dark:border-white/12 bg-white/80 dark:bg-zinc-950/70 backdrop-blur-2xl shadow-[0_0_70px_rgba(16,185,129,0.12)] dark:shadow-[0_0_90px_rgba(0,0,0,0.60)] overflow-hidden">
-          <div className="px-4 py-3 border-b border-emerald-200/40 dark:border-white/10 flex items-center justify-between">
-            <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">{title}</div>
-            <button
-              onClick={onClose}
-              className="h-10 w-10 rounded-2xl border border-emerald-200/70 dark:border-white/15 bg-white/70 dark:bg-zinc-900/55 backdrop-blur-xl"
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="p-4 max-h-[74dvh] overflow-y-auto">{children}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SettingRow({
-  title,
-  desc,
-  right,
-  actionLabel,
-  onAction,
-}: {
-  title: string;
-  desc: string;
-  right?: React.ReactNode;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <div className="rounded-2xl border border-emerald-200/55 dark:border-white/12 bg-white/60 dark:bg-zinc-900/55 backdrop-blur-2xl p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">{title}</div>
-          <div className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-400">{desc}</div>
-        </div>
-
-        {right ? <div className="shrink-0">{right}</div> : null}
-
-        {!right && actionLabel && onAction ? (
-          <button
-            onClick={onAction}
-            className="shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold border border-emerald-200/70 dark:border-white/15 bg-white/70 dark:bg-zinc-900/55 text-emerald-800 dark:text-white backdrop-blur-xl"
-          >
-            {actionLabel}
-          </button>
-        ) : null}
-      </div>
-    </div>
   );
 }

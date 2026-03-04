@@ -5,9 +5,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // ---------- Hugging Face (ONLY) ----------
-// Vercel Settings ထဲက နာမည်တွေနဲ့ ကိုက်ညီအောင် IMAGE_MODEL ကို ပြောင်းလဲထားပါတယ်။
 const HF_API_TOKEN = process.env.HF_API_TOKEN || "";
-const HF_MODEL = process.env.IMAGE_MODEL || "black-forest-labs/flux-schnell";
+// Vercel environment variable name နှင့် ကိုက်ညီအောင် IMAGE_MODEL ကို ဦးစားပေးယူထားသည်
+const HF_MODEL = process.env.IMAGE_MODEL || process.env.HF_MODEL || "black-forest-labs/flux-schnell";
 const HF_DAILY_LIMIT = Number(process.env.HF_DAILY_LIMIT || "10");
 
 // ---------- Supabase ----------
@@ -52,8 +52,8 @@ async function getAuthedEmailIfAny(req: Request) {
 async function generateWithHF(prompt: string) {
   if (!HF_API_TOKEN) throw new Error("Missing HF_API_TOKEN");
 
-  // ✅ မှန်ကန်သော API Inference Endpoint ကို သုံးထားသည်
-  const endpoint = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+  // ✅ ERROR LOG အရ ROUTER ENDPOINT ကို ပြောင်းလဲအသုံးပြုထားသည်
+  const endpoint = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
 
   const res = await fetch(endpoint, {
     method: "POST",
@@ -153,7 +153,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: result.url, provider: result.provider });
 
   } catch (e: any) {
-    console.error("DEBUG ERROR:", e.message); // Vercel logs မှာ error ကြည့်ရန်
+    console.error("DEBUG ERROR LOG:", e.message); // Vercel logs မှာ error message အတိအကျ ကြည့်ရန်
     const status = e.message.includes("limit") ? 429 : 500;
     return NextResponse.json({ error: e.message || "Server error" }, { status });
   }

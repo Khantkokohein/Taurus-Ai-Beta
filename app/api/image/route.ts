@@ -51,7 +51,7 @@ async function getAuthedEmailIfAny(req: Request) {
 async function generateWithHF(prompt: string) {
   if (!HF_API_TOKEN) throw new Error("Missing HF_API_TOKEN");
 
-  const endpoint = `https://api-inference.huggingface.co/models/${encodeURIComponent(HF_MODEL)}`;
+  const endpoint = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
 
   const res = await fetch(endpoint, {
     method: "POST",

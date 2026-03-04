@@ -6,7 +6,7 @@ export const maxDuration = 60
 
 // ---------- Hugging Face (ONLY) ----------
 const HF_API_TOKEN = process.env.HF_API_TOKEN || "";
-const HF_MODEL = process.env.HF_MODEL || "stabilityai/sdxl-turbo";
+const HF_MODEL = process.env.IMAGE_MODEL || "black-forest-labs/flux-schnell";
 const HF_DAILY_LIMIT = Number(process.env.HF_DAILY_LIMIT || "10"); // per IP/day (beta)
 
 // ---------- Supabase ----------
@@ -52,7 +52,8 @@ async function getAuthedEmailIfAny(req: Request) {
 async function generateWithHF(prompt: string) {
   if (!HF_API_TOKEN) throw new Error("Missing HF_API_TOKEN");
 
-  const endpoint = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
+ // router.huggingface.co အစား api-inference.huggingface.co ကို သုံးပါ
+const endpoint = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
 
   const res = await fetch(endpoint, {
     method: "POST",

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 type PersonaKey =
@@ -796,27 +797,17 @@ async function createImage(prompt: string) {
               {/* Legal / Settings */}
               <div className="mt-5 space-y-2">
 
-                <GlassButton
-                  onClick={() => {
-                    setTcOpen(true);
-                    setMenuOpen(false);
-                  }}
-                  subtle
-                >
-              
-                 T&C
-                </GlassButton>
+      <Link href="/terms">
+  <GlassButton subtle onClick={() => setMenuOpen(false)}>
+    T&C
+  </GlassButton>
+</Link>
 
-                <GlassButton
-  onClick={() => {
-    setEmployerOpen(true);
-    setMenuOpen(false);
-  }}
-  subtle
->
-  Employer Agreement
-</GlassButton>
-
+    <Link href="/employer">
+  <GlassButton subtle onClick={() => setMenuOpen(false)}>
+    Employer Agreement
+  </GlassButton>
+</Link>
                 <GlassButton
                   onClick={() => {
                     setSettingsOpen(true);
@@ -942,7 +933,22 @@ async function createImage(prompt: string) {
                 Your data is never sold or used for advertising. Beta features may change and logs/analytics may be used to improve stability.
               </div>
             </div>
+<div className="rounded-2xl border border-emerald-200/55 dark:border-white/12 bg-white/60 dark:bg-zinc-900/55 p-4">
+  <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+    Privacy Notice
+  </div>
 
+  <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
+    Taurus AI respects your privacy. We only store minimal technical data required 
+    to operate the service. Authentication is handled through Google OAuth and we 
+    do not access, read, or store your Gmail content.
+  </div>
+
+  <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
+    Usage logs may be collected to improve system stability and security during 
+    the Beta phase. Your data is never sold or used for advertising.
+  </div>
+</div>
             <div className="text-[12px] text-zinc-500 dark:text-zinc-400">
               Founder: <span className="font-semibold text-zinc-800 dark:text-zinc-100">Khant Ko Ko Hein</span>
             </div>

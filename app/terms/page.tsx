@@ -45,18 +45,22 @@ export default function TermsPage() {
           </h1>
 
           <p className="text-sm leading-relaxed">
-            {isMM
-              ? "Company Name: OMK Technologies Co., Ltd."
-              : "Company Name: OMK Technologies Co., Ltd."}
-            <br />
-            {isMM ? "Founder: Mr. Khant Ko Ko Hein" : "Founder: Mr. Khant Ko Ko Hein"}
-            <br />
-            {isMM
-              ? "Business Registration Status: Registration in Progress"
-              : "Business Registration Status: Registration in Progress"}
-            <br />
-            {isMM ? "Last Updated: 2026" : "Last Updated: 2026"}
-          </p>
+
+Company Name: OMK Technologies Co., Ltd.
+<br />
+
+Founder: Mr. Khant Ko Ko Hein
+<br />
+
+Co-Founder: Moe Thazin Oo
+<br />
+
+Business Registration Status: Registration in Progress
+<br />
+
+Last Updated: 2026
+
+</p>
         </div>
 
         {/* 🔷 Section Block Component */}

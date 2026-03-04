@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const runtime = "nodejs";
+export const runtime = "nodejs"
+export const maxDuration = 60
 
 // ---------- Hugging Face (ONLY) ----------
 const HF_API_TOKEN = process.env.HF_API_TOKEN || "";
-const HF_MODEL = process.env.HF_MODEL || "runwayml/stable-diffusion-v1-5";
+const HF_MODEL = process.env.HF_MODEL || "stabilityai/sdxl-turbo";
 const HF_DAILY_LIMIT = Number(process.env.HF_DAILY_LIMIT || "10"); // per IP/day (beta)
 
 // ---------- Supabase ----------

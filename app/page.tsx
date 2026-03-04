@@ -87,6 +87,11 @@ export default function Page() {
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [activePersona, setActivePersona] = useState<PersonaKey>("taurus");
 
+  const [tcOpen, setTcOpen] = useState(false);
+const [settingsOpen, setSettingsOpen] = useState(false);
+const [securityOpen, setSecurityOpen] = useState(false);
+const [employerOpen, setEmployerOpen] = useState(false);
+
   // 👉 Image Modal State
 const [imageModalOpen, setImageModalOpen] = useState(false);
 const [imagePrompt, setImagePrompt] = useState("");
@@ -148,10 +153,7 @@ async function createImage(prompt: string) {
   const [authed, setAuthed] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: "free" | "pro" | "plus" } | null>(null);
 
-  // T&C + Settings + Security sheets
-  const [tcOpen, setTcOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [securityOpen, setSecurityOpen] = useState(false);
+
 
   // Chat
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -800,8 +802,26 @@ async function createImage(prompt: string) {
                   }}
                   subtle
                 >
+                  <GlassButton
+  onClick={() => {
+    setSecurityOpen(true);
+    setMenuOpen(false);
+  }}
+  subtle
+>
+  Security & Privacy
+</GlassButton>
                   T&C
                 </GlassButton>
+                <GlassButton
+  onClick={() => {
+    setEmployerOpen(true);
+    setMenuOpen(false);
+  }}
+  subtle
+>
+  Employer Agreement
+</GlassButton>
 
                 <GlassButton
                   onClick={() => {
@@ -932,6 +952,29 @@ async function createImage(prompt: string) {
             <div className="text-[12px] text-zinc-500 dark:text-zinc-400">
               Founder: <span className="font-semibold text-zinc-800 dark:text-zinc-100">Khant Ko Ko Hein</span>
             </div>
+          </div>
+        </ModalShell>
+      ) : null}
+          {/* Employer Agreement Modal */}
+      {employerOpen ? (
+        <ModalShell title="Employer Agreement" onClose={() => setEmployerOpen(false)}>
+          <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+            <p className="font-semibold text-zinc-900 dark:text-zinc-100">Employer Agreement</p>
+
+            {/* ✅ မူရင်းစာသားကို ဒီထဲမှာထည့် (မူရင်းရေးထားတာ မပြောင်းချင်ရင် 그대로 paste) */}
+            <p>
+              (Put your Employer Agreement text here)
+            </p>
+
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              Company Name: OMK Technologies Co., Ltd.
+            </p>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              Founder: Khant Ko Ko Hein
+            </p>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              Co-Founder: Moe Thazin Oo
+            </p>
           </div>
         </ModalShell>
       ) : null}

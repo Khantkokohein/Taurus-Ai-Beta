@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const runtime = "nodejs"
-export const maxDuration = 60
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 // ---------- Hugging Face (ONLY) ----------
+// Vercel Settings ထဲက နာမည်တွေနဲ့ ကိုက်ညီအောင် IMAGE_MODEL ကို ပြောင်းလဲထားပါတယ်။
 const HF_API_TOKEN = process.env.HF_API_TOKEN || "";
 const HF_MODEL = process.env.IMAGE_MODEL || "black-forest-labs/flux-schnell";
-const HF_DAILY_LIMIT = Number(process.env.HF_DAILY_LIMIT || "10"); // per IP/day (beta)
+const HF_DAILY_LIMIT = Number(process.env.HF_DAILY_LIMIT || "10");
 
 // ---------- Supabase ----------
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
@@ -44,16 +45,15 @@ async function getAuthedEmailIfAny(req: Request) {
   const { data, error } = await sb.auth.getUser(token);
   if (error) return null;
 
-  const email = (data.user?.email || "").toLowerCase().trim();
-  return email || null;
+  return (data.user?.email || "").toLowerCase().trim() || null;
 }
 
 // ---------- HF Generate (returns dataURL) ----------
 async function generateWithHF(prompt: string) {
   if (!HF_API_TOKEN) throw new Error("Missing HF_API_TOKEN");
 
- // router.huggingface.co အစား api-inference.huggingface.co ကို သုံးပါ
-const endpoint = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+  // ✅ မှန်ကန်သော API Inference Endpoint ကို သုံးထားသည်
+  const endpoint = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
 
   const res = await fetch(endpoint, {
     method: "POST",
@@ -79,119 +79,82 @@ const endpoint = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
     throw new Error(txt || "HF image generation failed");
   }
 
-  // HF image bytes -> data URL
   const buf = Buffer.from(await res.arrayBuffer());
   const b64 = buf.toString("base64");
-  const dataUrl = `data:image/png;base64,${b64}`;
-
-  return { url: dataUrl, provider: "hf" as const };
+  return { url: `data:image/png;base64,${b64}`, provider: "hf" as const };
 }
 
-// ---------- HF Rate Limit (per IP/day) ----------
-// Table: hf_image_daily_usage(day text, ip text)
-// If table missing -> ignore (beta)
+// ---------- HF Rate Limit Check ----------
 async function enforceHFDailyLimit(db: any, day: string, ip: string) {
   if (!db) return;
-
   const { count, error } = await db
     .from("hf_image_daily_usage")
     .select("id", { count: "exact" })
     .eq("day", day)
     .eq("ip", ip);
 
-  if (error) {
-    // table not created yet -> don't hard fail (beta)
-    return;
-  }
-
-  const used = Number(count || 0);
-  if (used >= HF_DAILY_LIMIT) {
+  if (error) return; 
+  if (Number(count || 0) >= HF_DAILY_LIMIT) {
     throw new Error(`HF daily limit reached (${HF_DAILY_LIMIT}/day)`);
   }
 }
 
 async function saveHFUsage(db: any, day: string, ip: string) {
   if (!db) return;
-  const ins = await db.from("hf_image_daily_usage").insert({ day, ip });
-  if (ins.error) return; // table missing -> ignore (beta)
+  await db.from("hf_image_daily_usage").insert({ day, ip });
 }
 
-// ---------- Main ----------
+// ---------- Main POST Route ----------
 export async function POST(req: Request) {
   try {
     const db = supabaseAdmin();
     if (!db) {
-      return NextResponse.json(
-        { error: "Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Supabase config missing" }, { status: 500 });
     }
 
     const ip = getIP(req);
     const day = dayKey();
-
     const body = await req.json().catch(() => ({}));
     const prompt = String(body?.prompt || "").trim();
     const deviceId = String(body?.deviceId || "").trim();
-    const provider = String(body?.provider || "hf").toLowerCase(); // default hf
+    const provider = String(body?.provider || "hf").toLowerCase();
 
-    if (!prompt) return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
-    if (!deviceId) return NextResponse.json({ error: "deviceId is required" }, { status: 400 });
+    if (!prompt || !deviceId) {
+      return NextResponse.json({ error: "Prompt and deviceId are required" }, { status: 400 });
+    }
 
-    // ✅ Owner unlimited (SERVER) — works only when client sends Bearer token
     const email = await getAuthedEmailIfAny(req);
     const isOwner = !!email && email === OWNER_EMAIL;
 
-    // ✅ Replicate disabled (Coming Soon)
     if (provider === "replicate" || provider === "auto") {
-      return NextResponse.json(
-        { error: "Advanced Image Generation (Replicate) is Coming Soon." },
-        { status: 503 }
-      );
+      return NextResponse.json({ error: "Advanced mode coming soon." }, { status: 503 });
     }
 
-    // ✅ 1 device = 1 photo/day (SERVER) + IP safety — owner bypasses ALL
+    // Rate Limiting Logic
     if (!isOwner) {
-      const usedByDevice = await db
-        .from("image_daily_usage")
-        .select("id")
-        .eq("day", day)
-        .eq("device_id", deviceId)
-        .maybeSingle();
+      const { data: deviceUsed } = await db.from("image_daily_usage").select("id").eq("day", day).eq("device_id", deviceId).maybeSingle();
+      const { data: ipUsed } = await db.from("image_daily_usage").select("id").eq("day", day).eq("ip", ip).maybeSingle();
 
-      if (usedByDevice.error) return NextResponse.json({ error: "DB error (device usage)" }, { status: 500 });
-
-      const usedByIP = await db
-        .from("image_daily_usage")
-        .select("id")
-        .eq("day", day)
-        .eq("ip", ip)
-        .maybeSingle();
-
-      if (usedByIP.error) return NextResponse.json({ error: "DB error (ip usage)" }, { status: 500 });
-
-      if (usedByDevice.data || usedByIP.data) {
-        return NextResponse.json({ error: "Daily test limit reached (1/day)" }, { status: 429 });
+      if (deviceUsed || ipUsed) {
+        return NextResponse.json({ error: "Daily limit reached (1/day)" }, { status: 429 });
       }
+      await enforceHFDailyLimit(db, day, ip);
     }
 
-    // ✅ HF daily limit (beta) — owner bypasses
-    if (!isOwner) await enforceHFDailyLimit(db, day, ip);
-
+    // 🔥 Image Generation
     const result = await generateWithHF(prompt);
 
+    // Save Usage
     if (!isOwner) {
       await saveHFUsage(db, day, ip);
-
-      // save global usage (only if not owner)
-      const ins = await db.from("image_daily_usage").insert({ day, device_id: deviceId, ip });
-      if (ins.error) return NextResponse.json({ error: "DB error (save usage)" }, { status: 500 });
+      await db.from("image_daily_usage").insert({ day, device_id: deviceId, ip });
     }
 
     return NextResponse.json({ url: result.url, provider: result.provider });
+
   } catch (e: any) {
-    const msg = String(e?.message || "Server error");
-    const status = msg.includes("limit") ? 429 : 500;
-    return NextResponse.json({ error: msg }, { status });
+    console.error("DEBUG ERROR:", e.message); // Vercel logs မှာ error ကြည့်ရန်
+    const status = e.message.includes("limit") ? 429 : 500;
+    return NextResponse.json({ error: e.message || "Server error" }, { status });
   }
 }

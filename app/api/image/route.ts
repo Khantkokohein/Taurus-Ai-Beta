@@ -6,7 +6,7 @@ export const maxDuration = 60;
 
 // ---------- Hugging Face (ONLY) ----------
 const HF_API_TOKEN = process.env.HF_API_TOKEN || "";
-// Vercel environment variable name နှင့် ကိုက်ညီအောင် IMAGE_MODEL ကို ဦးစားပေးယူထားသည်
+// Vercel Settings ထဲက IMAGE_MODEL ကို ဦးစားပေးယူရန် ပြင်ထားသည်
 const HF_MODEL = process.env.IMAGE_MODEL || process.env.HF_MODEL || "black-forest-labs/flux-schnell";
 const HF_DAILY_LIMIT = Number(process.env.HF_DAILY_LIMIT || "10");
 
@@ -52,7 +52,7 @@ async function getAuthedEmailIfAny(req: Request) {
 async function generateWithHF(prompt: string) {
   if (!HF_API_TOKEN) throw new Error("Missing HF_API_TOKEN");
 
-  // ✅ ERROR LOG အရ ROUTER ENDPOINT ကို ပြောင်းလဲအသုံးပြုထားသည်
+  // ✅ Vercel Log အရ Router Endpoint ကို အသုံးပြုရန် ပြင်ဆင်ထားသည်
   const endpoint = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
 
   const res = await fetch(endpoint, {
@@ -84,40 +84,17 @@ async function generateWithHF(prompt: string) {
   return { url: `data:image/png;base64,${b64}`, provider: "hf" as const };
 }
 
-// ---------- HF Rate Limit Check ----------
-async function enforceHFDailyLimit(db: any, day: string, ip: string) {
-  if (!db) return;
-  const { count, error } = await db
-    .from("hf_image_daily_usage")
-    .select("id", { count: "exact" })
-    .eq("day", day)
-    .eq("ip", ip);
-
-  if (error) return; 
-  if (Number(count || 0) >= HF_DAILY_LIMIT) {
-    throw new Error(`HF daily limit reached (${HF_DAILY_LIMIT}/day)`);
-  }
-}
-
-async function saveHFUsage(db: any, day: string, ip: string) {
-  if (!db) return;
-  await db.from("hf_image_daily_usage").insert({ day, ip });
-}
-
 // ---------- Main POST Route ----------
 export async function POST(req: Request) {
   try {
     const db = supabaseAdmin();
-    if (!db) {
-      return NextResponse.json({ error: "Supabase config missing" }, { status: 500 });
-    }
+    if (!db) return NextResponse.json({ error: "Supabase config missing" }, { status: 500 });
 
     const ip = getIP(req);
     const day = dayKey();
     const body = await req.json().catch(() => ({}));
     const prompt = String(body?.prompt || "").trim();
     const deviceId = String(body?.deviceId || "").trim();
-    const provider = String(body?.provider || "hf").toLowerCase();
 
     if (!prompt || !deviceId) {
       return NextResponse.json({ error: "Prompt and deviceId are required" }, { status: 400 });
@@ -126,11 +103,7 @@ export async function POST(req: Request) {
     const email = await getAuthedEmailIfAny(req);
     const isOwner = !!email && email === OWNER_EMAIL;
 
-    if (provider === "replicate" || provider === "auto") {
-      return NextResponse.json({ error: "Advanced mode coming soon." }, { status: 503 });
-    }
-
-    // Rate Limiting Logic
+    // Limit check logic
     if (!isOwner) {
       const { data: deviceUsed } = await db.from("image_daily_usage").select("id").eq("day", day).eq("device_id", deviceId).maybeSingle();
       const { data: ipUsed } = await db.from("image_daily_usage").select("id").eq("day", day).eq("ip", ip).maybeSingle();
@@ -138,23 +111,41 @@ export async function POST(req: Request) {
       if (deviceUsed || ipUsed) {
         return NextResponse.json({ error: "Daily limit reached (1/day)" }, { status: 429 });
       }
-      await enforceHFDailyLimit(db, day, ip);
     }
 
-    // 🔥 Image Generation
+    // 🔥 Image Generation Call
     const result = await generateWithHF(prompt);
 
-    // Save Usage
+  // Save usage if not owner
     if (!isOwner) {
-      await saveHFUsage(db, day, ip);
-      await db.from("image_daily_usage").insert({ day, device_id: deviceId, ip });
+      try {
+        // Main usage log
+        await db
+          .from("image_daily_usage")
+          .insert({ 
+            day: day, 
+            device_id: deviceId, 
+            ip: ip 
+          });
+
+        // HF specific log (wrapped to prevent 500 if table missing)
+        await db
+          .from("hf_image_daily_usage")
+          .insert({ 
+            day: day, 
+            ip: ip 
+          });
+      } catch (dbErr) {
+        console.error("Database Insert Error:", dbErr);
+      }
     }
 
     return NextResponse.json({ url: result.url, provider: result.provider });
 
   } catch (e: any) {
-    console.error("DEBUG ERROR LOG:", e.message); // Vercel logs မှာ error message အတိအကျ ကြည့်ရန်
-    const status = e.message.includes("limit") ? 429 : 500;
-    return NextResponse.json({ error: e.message || "Server error" }, { status });
+    console.error("DEBUG ERROR LOG:", e.message);
+    const msg = String(e?.message || "Server error");
+    const status = msg.includes("limit") ? 429 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }

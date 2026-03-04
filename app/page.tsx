@@ -795,6 +795,7 @@ async function createImage(prompt: string) {
 
               {/* Legal / Settings */}
               <div className="mt-5 space-y-2">
+
                 <GlassButton
                   onClick={() => {
                     setTcOpen(true);
@@ -802,17 +803,10 @@ async function createImage(prompt: string) {
                   }}
                   subtle
                 >
-                  <GlassButton
-  onClick={() => {
-    setSecurityOpen(true);
-    setMenuOpen(false);
-  }}
-  subtle
->
-  Security & Privacy
-</GlassButton>
-                  T&C
+              
+                 T&C
                 </GlassButton>
+
                 <GlassButton
   onClick={() => {
     setEmployerOpen(true);

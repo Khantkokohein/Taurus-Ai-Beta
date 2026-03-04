@@ -7,27 +7,36 @@ export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
-    // ၁။ Cookies ကို await လုပ်ပြီး ဖတ်မယ် (Next.js 15 Fix)
     const cookieStore = await cookies();
     
+    // Supabase Client ကို ပိုမိုခိုင်မာတဲ့ Cookie handling နဲ့ တည်ဆောက်မယ်
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              // Server Component ကနေ ခေါ်ရင် ignore လုပ်မယ်
+            }
           },
         },
       }
     );
 
-    // ၂။ Session စစ်ဆေးခြင်း
-    const { data: { session } } = await supabase.auth.getSession();
+    // Session စစ်ဆေးခြင်း
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
 
-    if (!session) {
+    if (!session || authError) {
       return NextResponse.json(
-        { error: "ကျေးဇူးပြု၍ Login အရင်ဝင်ပေးပါ။" }, 
+        { error: "ကျေးဇူးပြု၍ Login အရင်ဝင်ပေးပါ။ (Session not found)" }, 
         { status: 401 }
       );
     }
@@ -40,7 +49,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Prompt လိုအပ်ပါသည်။" }, { status: 400 });
     }
 
-    // ၃။ Hugging Face AI ဆီက ပုံတောင်းမယ်
+    // Hugging Face API Call
     const HF_TOKEN = process.env.HF_API_TOKEN;
     const HF_MODEL = process.env.IMAGE_MODEL || "black-forest-labs/flux-schnell";
 
@@ -65,20 +74,15 @@ export async function POST(req: Request) {
 
     const arrayBuffer = await hfResponse.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
-    const imageUrl = `data:image/png;base64,${base64}`;
-
-    // ၄။ Database Tracking (Error 2551 Fix: await အရင်သုံးရပါမယ်)
-    const { error: dbError } = await supabase.from('hf_image_daily_usage').insert({
+    
+    // Database Tracking
+    await supabase.from('hf_image_daily_usage').insert({
       user_id: user.id,
       prompt: prompt,
       day: new Date().toISOString().slice(0, 10)
     });
 
-    if (dbError) {
-      console.error("DB Error:", dbError.message);
-    }
-
-    return NextResponse.json({ url: imageUrl });
+    return NextResponse.json({ url: `data:image/png;base64,${base64}` });
 
   } catch (error: any) {
     console.error("SERVER ERROR:", error.message);

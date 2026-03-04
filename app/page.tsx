@@ -1005,26 +1005,35 @@ async function createImage(prompt: string) {
         >
           Cancel
         </button>
+<div className="flex gap-3">
+  <button
+    className="flex-1 py-2 rounded-2xl border border-white/30 bg-white/65 dark:bg-zinc-900/55 text-zinc-900 dark:text-white"
+    onClick={async () => {
+      if (!imagePrompt.trim()) {
+        setImageErr("Prompt required");
+        return;
+      }
+      try {
+        setImageErr(null);
+        const result = await createImage(imagePrompt);
+        window.open(result.url, "_blank");
+        setImageModalOpen(false);
+      } catch {
+        setImageErr("Image create failed");
+      }
+    }}
+  >
+    Create Image — Beta
+  </button>
 
-        <button
-          onClick={async () => {
-            if (!imagePrompt.trim()) {
-              setImageErr("Prompt required");
-              return;
-            }
-            try {
-              setImageErr(null);
-              const result = await createImage(imagePrompt);
-              window.open(result.url, "_blank");
-              setImageModalOpen(false);
-            } catch (e: any) {
-              setImageErr("Image create failed");
-            }
-          }}
-          className="flex-1 py-2 rounded-2xl border border-white/30 bg-white/65 dark:bg-zinc-900/55 text-zinc-900 dark:text-white hover:bg-white/80 dark:hover:bg-zinc-900/70 font-semibold"
-        >
-          Generate
-        </button>
+  <button
+    className="flex-1 py-2 rounded-2xl border border-white/20 opacity-60 cursor-not-allowed text-zinc-700 dark:text-zinc-300"
+    disabled
+  >
+    Advanced Image Generation
+    <span className="block text-[12px] opacity-80">Coming Soon</span>
+  </button>
+</div>
       </div>
     </div>
   </div>

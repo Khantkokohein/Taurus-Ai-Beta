@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 // ---------- Hugging Face (ONLY) ----------
 const HF_API_TOKEN = process.env.HF_API_TOKEN || "";
-const HF_MODEL = process.env.HF_MODEL || "stabilityai/stable-diffusion-xl-base-1.0";
+const HF_MODEL = process.env.HF_MODEL || "runwayml/stable-diffusion-v1-5";
 const HF_DAILY_LIMIT = Number(process.env.HF_DAILY_LIMIT || "10"); // per IP/day (beta)
 
 // ---------- Supabase ----------

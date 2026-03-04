@@ -3,6 +3,13 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 
+export const maxDuration = 60; // 60 စက္ကန့်အထိ ခွင့်ပြုမယ်
+export const dynamic = 'force-dynamic';
+
+export async function POST(req: Request) {
+  // ... သင့်ရဲ့ ရှိရင်းစွဲ logic
+}
+
 // --- Types & Constants ---
 type Msg = { id: string; role: "user" | "ai"; text: string; ts: number };
 

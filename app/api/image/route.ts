@@ -1,91 +1,56 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
-export const runtime = "nodejs";
+// ⭐ Vercel Timeout Fix (60 Seconds)
 export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    
-    // Supabase Client ကို ပိုမိုခိုင်မာတဲ့ Cookie handling နဲ့ တည်ဆောက်မယ်
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    const { prompt, deviceId, isFree } = await req.json();
+
+    if (!prompt) {
+      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+    }
+
+    // 1. Hugging Face API ကို လှမ်းခေါ်ခြင်း
+    // မှတ်ချက် - HF_TOKEN ကို .env ထဲမှာ ထည့်ထားဖို့ လိုပါမယ်
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev", // သင့် model path ပြန်စစ်ပါ
       {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
-              // Server Component ကနေ ခေါ်ရင် ignore လုပ်မယ်
-            }
-          },
+        headers: {
+          Authorization: `Bearer ${process.env.HF_TOKEN}`,
+          "Content-Type": "application/json",
         },
+        method: "POST",
+        body: JSON.stringify({ inputs: prompt }),
       }
     );
 
-    // Session စစ်ဆေးခြင်း
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
-
-    if (!session || authError) {
+    // Hugging Face က error ပြန်ရင် (ဥပမာ 503 model loading)
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
       return NextResponse.json(
-        { error: "ကျေးဇူးပြု၍ Login အရင်ဝင်ပေးပါ။ (Session not found)" }, 
-        { status: 401 }
+        { error: errData.error || "Hugging Face API error" },
+        { status: response.status }
       );
     }
 
-    const user = session.user;
-    const body = await req.json().catch(() => ({}));
-    const prompt = String(body?.prompt || "").trim();
+    // 2. ရလာတဲ့ Image (Blob) ကို 处理 လုပ်ခြင်း
+    const blob = await response.blob();
+    const buffer = Buffer.from(await blob.arrayBuffer());
+    const base64Image = buffer.toString("base64");
 
-    if (!prompt) {
-      return NextResponse.json({ error: "Prompt လိုအပ်ပါသည်။" }, { status: 400 });
-    }
+    // 💡 မှတ်ချက် - Image URL အနေနဲ့ ပြန်ချင်ရင် Supabase Storage ထဲ သိမ်းရပါမယ်။
+    // အခုလောလောဆယ် Error မတက်အောင် Base64 နဲ့ပဲ စမ်းပြထားပါတယ်။
+    const imageUrl = `data:image/jpeg;base64,${base64Image}`;
 
-    // Hugging Face API Call
-    const HF_TOKEN = process.env.HF_API_TOKEN;
-    const HF_MODEL = process.env.IMAGE_MODEL || "black-forest-labs/flux-schnell";
-
-    const hfResponse = await fetch(
-      `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${HF_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          inputs: prompt,
-          options: { wait_for_model: true }
-        }),
-      }
-    );
-
-    if (!hfResponse.ok) {
-      return NextResponse.json({ error: `AI Error: ${hfResponse.status}` }, { status: hfResponse.status });
-    }
-
-    const arrayBuffer = await hfResponse.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-    
-    // Database Tracking
-    await supabase.from('hf_image_daily_usage').insert({
-      user_id: user.id,
-      prompt: prompt,
-      day: new Date().toISOString().slice(0, 10)
-    });
-
-    return NextResponse.json({ url: `data:image/png;base64,${base64}` });
+    return NextResponse.json({ url: imageUrl });
 
   } catch (error: any) {
-    console.error("SERVER ERROR:", error.message);
-    return NextResponse.json({ error: "Server Error: " + error.message }, { status: 500 });
+    console.error("Image Route Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

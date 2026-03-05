@@ -54,11 +54,13 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({
           inputs: prompt,
+          
           // Optional: some models accept parameters
           // parameters: { guidance_scale: 3.5, num_inference_steps: 28 },
         }),
       });
-
+console.log("HF status:", r.status);
+console.log("HF type:", r.headers.get("content-type"));
       lastStatus = r.status;
 
       // Success: usually image blob

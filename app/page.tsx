@@ -93,11 +93,6 @@ const [settingsOpen, setSettingsOpen] = useState(false);
 const [securityOpen, setSecurityOpen] = useState(false);
 const [employerOpen, setEmployerOpen] = useState(false);
 
-  // 👉 Image Modal State
-const [imageModalOpen, setImageModalOpen] = useState(false);
-const [imagePrompt, setImagePrompt] = useState("");
-const [imageErr, setImageErr] = useState<string | null>(null);
-
 // Theme
 const [theme, setTheme] = useState<ThemeMode>("light");
 
@@ -129,19 +124,11 @@ useEffect(() => {
 }, []);
 
 async function createImage(prompt: string) {
-
-  const deviceId = localStorage.getItem(LS_DEVICE) || "unknown";
-
-  const { data } = await supabase.auth.getSession();
-  const accessToken = data?.session?.access_token || null;
-
-const res = await fetch("/api/image", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({ prompt }),
-});
+  const res = await fetch("/api/image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
 
   const dataRes = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(String(dataRes?.error ?? "Image create failed"));
@@ -353,6 +340,7 @@ const res = await fetch("/api/image", {
               text: "❌ Cancel လုပ်ပြီးပါပြီ။ Register Mode မှ ထွက်ပြီး normal chat ပြန်သွားပါမယ်။",
               ts: Date.now(),
             },
+
           ]);
           resetIntake();
           return;
@@ -429,6 +417,44 @@ const res = await fetch("/api/image", {
     }
 
     // normal chat mode
+   // MAIN AI: IMAGE CREATE via chat command
+if (mode === "chat" && activePersona === "taurus" && text.toLowerCase().startsWith("/image")) {
+
+  const prompt = text.slice(6).trim();
+
+  if (!prompt) {
+    setMessages((m) => [
+      ...m,
+      { id: uid(), role: "ai", text: "🖼 Please write a prompt after /image", ts: Date.now() },
+    ]);
+    return;
+  }
+
+  setSending(true);
+
+  try {
+    const result = await createImage(prompt);
+
+    setMessages((m) => [
+      ...m,
+      {
+        id: uid(),
+        role: "ai",
+        text: `🖼 Image Generated\n\n${result.url}`,
+        ts: Date.now(),
+      },
+    ]);
+  } catch {
+    setMessages((m) => [
+      ...m,
+      { id: uid(), role: "ai", text: "⚠ Image create failed. Try again.", ts: Date.now() },
+    ]);
+  } finally {
+    setSending(false);
+  }
+
+  return;
+}
     setSending(true);
     try {
       const res = await fetch("/api/chat", {
@@ -450,11 +476,7 @@ const res = await fetch("/api/image", {
     }
   }
 
- function photoCreate() {
-  setImageErr(null);
-  setImagePrompt("");
-  setImageModalOpen(true);
-}
+
 
   const headerTitle =
     mode === "recruitment"
@@ -629,16 +651,17 @@ const res = await fetch("/api/image", {
                 </button>
               ) : (
                 <button
-                  onClick={photoCreate}
-                  className={classNames(
-                    "h-11 w-11 rounded-2xl border bg-white/65 backdrop-blur-xl flex items-center justify-center text-[18px]",
-                    "border-emerald-200/70 dark:border-white/15 dark:bg-zinc-900/55"
-                  )}
-                  aria-label="Photo Create"
-                  title="Photo Create (Coming Soon)"
-                >
-                  📷
-                </button>
+  disabled
+  className={classNames(
+    "h-11 w-11 rounded-2xl border bg-white/65 backdrop-blur-xl flex items-center justify-center text-[18px]",
+    "border-emerald-200/70 dark:border-white/15 dark:bg-zinc-900/55",
+    "opacity-50 cursor-not-allowed"
+  )}
+  aria-label="Advanced Image Generation Coming Soon"
+  title="Advanced Image Generation — Coming Soon"
+>
+  📷
+</button>
               )}
 
               <div className="flex-1">
@@ -768,7 +791,7 @@ const res = await fetch("/api/image", {
 
               {/* Primary actions */}
               <div className="mt-4 space-y-2">
-                <GlassButton onClick={photoCreate}>Photo Create (Coming Soon)</GlassButton>
+                <ComingSoonItem label="Advanced Image Generation — Coming Soon" />
 
                 <ComingSoonItem label="History (Coming Soon)" />
                 <ComingSoonItem label="Pro / Plus (Coming Soon)" />
@@ -977,66 +1000,7 @@ const res = await fetch("/api/image", {
           </div>
         </ModalShell>
       ) : null}
-     {imageModalOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div className="w-[90%] max-w-md rounded-3xl bg-white/85 dark:bg-zinc-950/75 border border-white/20 p-5 shadow-xl backdrop-blur-2xl">
-      <h2 className="text-lg font-semibold mb-3 text-center text-zinc-900 dark:text-white">
-        Create Image
-      </h2>
-
-      <input
-        value={imagePrompt}
-        onChange={(e) => setImagePrompt(e.target.value)}
-        placeholder="Enter image prompt..."
-        className="w-full px-4 py-2 rounded-2xl bg-white/60 dark:bg-zinc-900/45 border border-white/20 text-zinc-900 dark:text-white placeholder-zinc-500 dark:placeholder-white/35 focus:outline-none focus:border-white/35"
-      />
-
-      {imageErr && (
-        <p className="text-red-500 text-sm mt-2 text-center">
-          {imageErr}
-        </p>
-      )}
-
-      <div className="flex gap-3 mt-4">
-        <button
-          onClick={() => setImageModalOpen(false)}
-          className="flex-1 py-2 rounded-2xl border border-white/20 bg-white/55 dark:bg-zinc-900/45 text-zinc-800 dark:text-white hover:bg-white/70 dark:hover:bg-zinc-900/60"
-        >
-          Cancel
-        </button>
-<div className="flex gap-3">
-  <button
-    className="flex-1 py-2 rounded-2xl border border-white/30 bg-white/65 dark:bg-zinc-900/55 text-zinc-900 dark:text-white"
-    onClick={async () => {
-      if (!imagePrompt.trim()) {
-        setImageErr("Prompt required");
-        return;
-      }
-      try {
-        setImageErr(null);
-        const result = await createImage(imagePrompt);
-        window.open(result.url, "_blank");
-        setImageModalOpen(false);
-      } catch {
-        setImageErr("Image create failed");
-      }
-    }}
-  >
-    Create Image — Beta
-  </button>
-
-  <button
-    className="flex-1 py-2 rounded-2xl border border-white/20 opacity-60 cursor-not-allowed text-zinc-700 dark:text-zinc-300"
-    disabled
-  >
-    Advanced Image Generation
-    <span className="block text-[12px] opacity-80">Coming Soon</span>
-  </button>
-</div>
-      </div>
-    </div>
-  </div>
-)}
+    
     </main>
   );
 }

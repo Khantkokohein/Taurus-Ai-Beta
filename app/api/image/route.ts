@@ -11,7 +11,7 @@ export async function POST(req: Request) {
 
     // ✅ ENV: Use HF_TOKEN (match Vercel)
     const hfToken = process.env.HF_TOKEN;
-    const model = process.env.HF_IMAGE_MODEL || "stabilityai/sdxl-turbo";
+    const model = process.env.HF_IMAGE_MODEL || "runwayml/stable-diffusion-v1-5";
 
     if (!hfToken) {
       return Response.json({ error: "Missing HF_TOKEN in Vercel env" }, { status: 500 });

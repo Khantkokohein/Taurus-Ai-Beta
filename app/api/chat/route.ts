@@ -1,7 +1,7 @@
 // app/api/chat/route.ts  (FULL REPLACE — Enterprise Main AI Super Power Mode)
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
-
+export const maxDuration = 60;
 
 // Upstash Redis (from Vercel env)
 const redis = Redis.fromEnv();

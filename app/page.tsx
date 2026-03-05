@@ -135,14 +135,13 @@ async function createImage(prompt: string) {
   const { data } = await supabase.auth.getSession();
   const accessToken = data?.session?.access_token || null;
 
-  const res = await fetch("/api/image", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-    body: JSON.stringify({ prompt, deviceId }),
-  });
+const res = await fetch("/api/image", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ prompt }),
+});
 
   const dataRes = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(String(dataRes?.error ?? "Image create failed"));

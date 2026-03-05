@@ -15,16 +15,16 @@ export async function POST(req: Request) {
     // 1. Hugging Face API ကို လှမ်းခေါ်ခြင်း
     // မှတ်ချက် - HF_TOKEN ကို .env ထဲမှာ ထည့်ထားဖို့ လိုပါမယ်
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev", // သင့် model path ပြန်စစ်ပါ
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HF_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-        body: JSON.stringify({ inputs: prompt }),
-      }
-    );
+  "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell",
+  {
+    headers: {
+      Authorization: `Bearer ${process.env.HF_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+    body: JSON.stringify({ inputs: prompt }),
+  }
+);
 
     // Hugging Face က error ပြန်ရင် (ဥပမာ 503 model loading)
     if (!response.ok) {

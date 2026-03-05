@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
     // Allow optional override via env
     const model = process.env.HF_IMAGE_MODEL?.trim() || DEFAULT_MODEL;
-    const url = `${HF_BASE}${encodeURIComponent(model)}`;
+    const url = `${HF_BASE}${model}`;
 
     // ✅ Robust warm-up handling:
     // FLUX/SDXL sometimes returns 503 "model loading"

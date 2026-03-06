@@ -375,15 +375,15 @@ async function submitIntake(payload: any) {
               },
             ]);
             resetIntake();
-          } catch {
-            setMessages((m) => [
-              ...m,
-              {
-                id: uid(),
-                role: "ai",
-                text:
-                  "⚠️ Submit မအောင်မြင်ပါ။ Network/Server ပြဿနာဖြစ်နိုင်ပါတယ်။\n\nYES လို့ ပြန်ပို့ပြီး ထပ်ကြိုးစားလို့ရပါတယ်။ မလိုတော့ရင် NO လို့ပို့ပါ။",
-                ts: Date.now(),
+          } catch (err: any) {
+  setMessages((m) => [
+    ...m,
+    {
+      id: uid(),
+      role: "ai",
+      text:
+        `⚠️ Submit မအောင်မြင်ပါ။\n\n${err?.message || "Unknown error"}\n\nYES လို့ ပြန်ပို့ပြီး ထပ်ကြိုးစားလို့ရပါတယ်။ မလိုတော့ရင် NO လို့ပို့ပါ။`,
+      ts: Date.now(),
               },
             ]);
           } finally {

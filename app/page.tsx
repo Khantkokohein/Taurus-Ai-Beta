@@ -301,6 +301,7 @@ async function submitIntake(payload: any) {
       type: isJob ? "job" : "hire",
       name: isJob ? payload.data?.name ?? "" : payload.data?.biz ?? "",
       email: payload.user?.email ?? "",
+      phone: payload.data?.phone ?? "",
       job_title: isJob ? payload.data?.exp ?? "" : payload.data?.position ?? "",
     }),
   });

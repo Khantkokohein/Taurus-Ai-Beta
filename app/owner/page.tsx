@@ -8,6 +8,7 @@ type RequestRow = {
   type: string;
   name: string;
   email: string;
+  phone: string | null
   job_title: string | null;
   submitted: boolean;
   status: string;
@@ -106,6 +107,7 @@ export default function OwnerPage() {
                   <p><b>Type:</b> {item.type}</p>
                   <p><b>Name:</b> {item.name || "-"}</p>
                   <p><b>Email:</b> {item.email || "-"}</p>
+                  <p>Phone: {item.phone || "-"}</p>
                   <p><b>Job Title:</b> {item.job_title || "-"}</p>
                   <p><b>Status:</b> {item.status || "-"}</p>
                   <p><b>Submitted:</b> {item.submitted ? "YES" : "NO"}</p>

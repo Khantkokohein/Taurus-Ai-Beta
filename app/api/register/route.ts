@@ -14,6 +14,7 @@ export async function POST(req: Request) {
       type: body?.type ?? null,
       name: body?.name ?? null,
       email: body?.email ?? null,
+      phone: body?.phone ?? null,
       job_title: body?.job_title ?? null,
       submitted: true,
       status: "submitted",

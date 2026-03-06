@@ -81,7 +81,7 @@ export default function HistoryPage() {
       const { data, error } = await supabase
         .from("requests")
         .select("*")
-        .eq("user_email", userEmail)
+        .eq("email", userEmail)
         .order("id", { ascending: false });
 
       if (!error && data) {

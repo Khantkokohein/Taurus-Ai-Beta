@@ -91,7 +91,6 @@ export default function Page() {
 
   const [tcOpen, setTcOpen] = useState(false);
 const [settingsOpen, setSettingsOpen] = useState(false);
-const [securityOpen, setSecurityOpen] = useState(false);
 const [employerOpen, setEmployerOpen] = useState(false);
 
 // Theme
@@ -835,193 +834,175 @@ if (mode === "chat" && activePersona === "taurus" && text.toLowerCase().startsWi
                 </div>
               </div>
 
-              {/* Legal / Settings */}
-              <div className="mt-5 space-y-2">
-
-      <Link href="/terms">
-  <GlassButton subtle onClick={() => setMenuOpen(false)}>
-    T&C
-  </GlassButton>
-</Link>
-
-    <Link href="/employer">
-  <GlassButton subtle onClick={() => setMenuOpen(false)}>
-    Employer Agreement
-  </GlassButton>
-</Link>
-                <GlassButton
-                  onClick={() => {
-                    setSettingsOpen(true);
-                    setMenuOpen(false);
-                  }}
-                  subtle
-                >
-                  Settings
-                </GlassButton>
-
-                <div className="pt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Founder: <span className="font-semibold text-zinc-800 dark:text-zinc-100">Khant Ko Ko Hein</span>
-                </div>
-              </div>
-            </div>
-          </aside>
-        </div>
-      ) : null}
-
-      {/* Choice AI Assistant Overlay */}
-      {choiceOpen ? (
-        <ModalShell title="Choice AI Assistant" onClose={() => setChoiceOpen(false)}>
-          <div className="grid grid-cols-1 gap-3">
-            {PERSONAS.map((p) => (
-              <button
-                key={p.key}
-                onClick={() => switchPersona(p.key)}
-                className={classNames(
-                  "w-full text-left rounded-3xl border bg-white/70 dark:bg-zinc-900/55 backdrop-blur-2xl px-4 py-4",
-                  p.key === activePersona ? "border-emerald-300/75 dark:border-white/20" : "border-emerald-200/55 dark:border-white/12"
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[14px] font-extrabold text-zinc-900 dark:text-zinc-100">{p.title}</div>
-                    <div className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-1">{p.subtitle}</div>
-                  </div>
-                  <span className="text-[12px] text-zinc-500 dark:text-zinc-400">{p.tone}</span>
-                </div>
-                <div className="mt-3 text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Tap to start a new chat. If you have an active chat, End Chat confirmation will appear.
-                </div>
-              </button>
-            ))}
-          </div>
-        </ModalShell>
-      ) : null}
-
-      {/* T&C Sheet */}
-      {tcOpen ? (
-        <ModalShell title="Terms & Conditions" onClose={() => setTcOpen(false)}>
-          <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            <p className="font-semibold text-zinc-900 dark:text-zinc-100">TAURUS AI — Beta Terms</p>
-            <p>
-              Taurus AI is a beta product. Features may change without notice. We aim to provide accurate responses, but outputs may contain errors.
-              Use critical judgment for important decisions.
-            </p>
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Founder: Khant Ko Ko Hein</p>
-          </div>
-        </ModalShell>
-      ) : null}
-
-      {/* Settings Sheet */}
-      {settingsOpen ? (
-        <ModalShell title="Settings" onClose={() => setSettingsOpen(false)}>
-          <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            <SettingRow
-              title="Dark Mode"
-              desc="Glass style stays the same. Light = white glass. Dark = black glass + white borders."
-              right={
-                <button
-                  onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-                  className={classNames(
-                    "rounded-full px-3 py-1 text-[12px] font-semibold border backdrop-blur-xl",
-                    theme === "dark"
-                      ? "border-white/20 bg-zinc-900/55 text-white"
-                      : "border-emerald-200/70 bg-white/70 text-emerald-800"
-                  )}
-                >
-                  {theme === "dark" ? "Dark: ON" : "Dark: OFF"}
-                </button>
-              }
-            />
-
-            <SettingRow
-              title="Security & Privacy"
-              desc="Google login, data usage, and privacy notes."
-              actionLabel="Open"
-              onAction={() => {
-                setSecurityOpen(true);
-                setSettingsOpen(false);
-              }}
-            />
-
-            <SettingRow title="Security & Password" desc="(Coming Soon) Pattern/PIN lock + session security." />
-            <SettingRow title="Version Upgrade" desc="(Coming Soon) Provider upgrades + performance improvements." />
-            <SettingRow title="About" desc="TAURUS AI — Born in Myanmar. Built for the World." />
-          </div>
-        </ModalShell>
-      ) : null}
-
-      {/* ✅ Security Modal (moved Gmail text here) */}
-      {securityOpen ? (
-        <ModalShell title="Security & Privacy" onClose={() => setSecurityOpen(false)}>
-          <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            <div className="rounded-2xl border border-emerald-200/55 dark:border-white/12 bg-white/60 dark:bg-zinc-900/55 backdrop-blur-2xl p-4">
-              <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Google Login (OAuth)</div>
-              <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-                Sign in with Google is used to unlock enhanced security and advanced features.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-200/55 dark:border-white/12 bg-white/60 dark:bg-zinc-900/55 backdrop-blur-2xl p-4">
-              <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Gmail Content</div>
-              <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-                Taurus AI does <span className="font-semibold">not access</span> or <span className="font-semibold">store</span> your Gmail content.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-200/55 dark:border-white/12 bg-white/60 dark:bg-zinc-900/55 backdrop-blur-2xl p-4">
-              <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Data Use</div>
-              <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-                Your data is never sold or used for advertising. Beta features may change and logs/analytics may be used to improve stability.
-              </div>
-            </div>
-<div className="rounded-2xl border border-emerald-200/55 dark:border-white/12 bg-white/60 dark:bg-zinc-900/55 p-4">
-  <div className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
-    Privacy Notice
+             {/* Legal / Settings */}
+<div className="mt-5 space-y-2">
+  <div className="pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+    Legal
   </div>
 
-  <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-    Taurus AI respects your privacy. We only store minimal technical data required 
-    to operate the service. Authentication is handled through Google OAuth and we 
-    do not access, read, or store your Gmail content.
+  <Link href="/terms">
+    <GlassButton subtle onClick={() => setMenuOpen(false)}>
+      T&C
+    </GlassButton>
+  </Link>
+
+  <Link href="/privacy">
+    <GlassButton subtle onClick={() => setMenuOpen(false)}>
+      Privacy Policy
+    </GlassButton>
+  </Link>
+
+  <Link href="/employer">
+    <GlassButton subtle onClick={() => setMenuOpen(false)}>
+      Employer Agreement
+    </GlassButton>
+  </Link>
+
+  <div className="pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+    System
   </div>
 
-  <div className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
-    Usage logs may be collected to improve system stability and security during 
-    the Beta phase. Your data is never sold or used for advertising.
+  <GlassButton
+    onClick={() => {
+      setSettingsOpen(true);
+      setMenuOpen(false);
+    }}
+    subtle
+  >
+    Settings
+  </GlassButton>
+
+  <div className="pt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+    Founder:{" "}
+    <span className="font-semibold text-zinc-800 dark:text-zinc-100">
+      Khant Ko Ko Hein
+    </span>
   </div>
 </div>
-            <div className="text-[12px] text-zinc-500 dark:text-zinc-400">
-              Founder: <span className="font-semibold text-zinc-800 dark:text-zinc-100">Khant Ko Ko Hein</span>
+</div>
+</aside>
+</div>
+) : null}
+
+{/* Choice AI Assistant Overlay */}
+{choiceOpen ? (
+  <ModalShell title="Choice AI Assistant" onClose={() => setChoiceOpen(false)}>
+    <div className="grid grid-cols-1 gap-3">
+      {PERSONAS.map((p) => (
+        <button
+          key={p.key}
+          onClick={() => switchPersona(p.key)}
+          className={classNames(
+            "w-full text-left rounded-3xl border bg-white/70 dark:bg-zinc-900/55 backdrop-blur-2xl px-4 py-4",
+            p.key === activePersona
+              ? "border-emerald-300/75 dark:border-white/20"
+              : "border-emerald-200/55 dark:border-white/12"
+          )}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[14px] font-extrabold text-zinc-900 dark:text-zinc-100">
+                {p.title}
+              </div>
+              <div className="text-[12px] text-zinc-600 dark:text-zinc-400 mt-1">
+                {p.subtitle}
+              </div>
             </div>
+            <span className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              {p.tone}
+            </span>
           </div>
-        </ModalShell>
-      ) : null}
-          {/* Employer Agreement Modal */}
-      {employerOpen ? (
-        <ModalShell title="Employer Agreement" onClose={() => setEmployerOpen(false)}>
-          <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
-            <p className="font-semibold text-zinc-900 dark:text-zinc-100">Employer Agreement</p>
-
-            {/* ✅ မူရင်းစာသားကို ဒီထဲမှာထည့် (မူရင်းရေးထားတာ မပြောင်းချင်ရင် 그대로 paste) */}
-            <p>
-              (Put your Employer Agreement text here)
-            </p>
-
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-              Company Name: OMK Technologies Co., Ltd.
-            </p>
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-              Founder: Khant Ko Ko Hein
-            </p>
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-              Co-Founder: Moe Thazin Oo
-            </p>
+          <div className="mt-3 text-[11px] text-zinc-500 dark:text-zinc-400">
+            Tap to start a new chat. If you have an active chat, End Chat confirmation will appear.
           </div>
-        </ModalShell>
-      ) : null}
-    
-    </main>
-  );
+        </button>
+      ))}
+    </div>
+  </ModalShell>
+) : null}
+
+{/* T&C Sheet */}
+{tcOpen ? (
+  <ModalShell title="Terms & Conditions" onClose={() => setTcOpen(false)}>
+    <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+      <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+        TAURUS AI — Beta Terms
+      </p>
+      <p>
+        Taurus AI is a beta product. Features may change without notice. We aim
+        to provide accurate responses, but outputs may contain errors. Use
+        critical judgment for important decisions.
+      </p>
+      <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+        Founder: Khant Ko Ko Hein
+      </p>
+    </div>
+  </ModalShell>
+) : null}
+
+{/* Settings Sheet */}
+{settingsOpen ? (
+  <ModalShell title="Settings" onClose={() => setSettingsOpen(false)}>
+    <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+      <SettingRow
+        title="Dark Mode"
+        desc="Glass style stays the same. Light = white glass. Dark = black glass + white borders."
+        right={
+          <button
+            onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            className={classNames(
+              "rounded-full px-3 py-1 text-[12px] font-semibold border backdrop-blur-xl",
+              theme === "dark"
+                ? "border-white/20 bg-zinc-900/55 text-white"
+                : "border-emerald-200/70 bg-white/70 text-emerald-800"
+            )}
+          >
+            {theme === "dark" ? "Dark: ON" : "Dark: OFF"}
+          </button>
+        }
+      />
+
+      <SettingRow
+        title="Security & Password"
+        desc="(Coming Soon) Pattern/PIN lock + session security."
+      />
+      <SettingRow
+        title="Version Upgrade"
+        desc="(Coming Soon) Provider upgrades + performance improvements."
+      />
+      <SettingRow
+        title="About"
+        desc="TAURUS AI — Born in Myanmar. Built for the World."
+      />
+    </div>
+  </ModalShell>
+) : null}
+
+{/* Employer Agreement Modal */}
+{employerOpen ? (
+  <ModalShell title="Employer Agreement" onClose={() => setEmployerOpen(false)}>
+    <div className="space-y-3 text-[13px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+      <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+        Employer Agreement
+      </p>
+
+      <p>(Put your Employer Agreement text here)</p>
+
+      <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+        Company Name: OMK Technologies Co., Ltd.
+      </p>
+      <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+        Founder: Khant Ko Ko Hein
+      </p>
+      <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+        Co-Founder: Moe Thazin Oo
+      </p>
+    </div>
+  </ModalShell>
+) : null}
+
+</main>
+);
 }
 
 /* ---------------- Components ---------------- */

@@ -291,8 +291,7 @@ async function createImage(prompt: string) {
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
   }
-
-  async function submitIntake(payload: any) {
+async function submitIntake(payload: any) {
   const isJob = payload.kind === "job";
 
   const res = await fetch("/api/register", {
@@ -306,8 +305,13 @@ async function createImage(prompt: string) {
     }),
   });
 
-  if (!res.ok) throw new Error("Submit failed");
-  return res.json().catch(() => ({}));
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data?.error || "Submit failed");
+  }
+
+  return data;
 }
 
   function nextMissingStep(kind: IntakeKind, data: Record<string, any>) {

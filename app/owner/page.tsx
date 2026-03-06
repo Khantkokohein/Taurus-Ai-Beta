@@ -43,10 +43,18 @@ function statusBadge(status: string, hired: boolean) {
     };
   }
 
+  if (s === "reviewing") {
+    return {
+      label: "Reviewing",
+      className:
+        "border border-violet-400/40 bg-violet-500/15 text-violet-300 shadow-[0_0_18px_rgba(168,85,247,0.18)]",
+    };
+  }
+
   return {
     label: "Pending",
     className:
-      "border border-violet-400/40 bg-violet-500/15 text-violet-300 shadow-[0_0_18px_rgba(168,85,247,0.18)]",
+      "border border-amber-400/40 bg-amber-500/15 text-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.18)]",
   };
 }
 
@@ -58,6 +66,18 @@ export default function OwnerPage() {
   const [showList, setShowList] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "hired">("all");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  async function loadRequests() {
+    const { data, error } = await supabase
+      .from("requests")
+      .select("*")
+      .order("id", { ascending: false });
+
+    if (!error && data) {
+      setRequests(data as RequestRow[]);
+    }
+  }
 
   useEffect(() => {
     async function loadOwnerPanel() {
@@ -70,15 +90,7 @@ export default function OwnerPage() {
       if (user?.email?.toLowerCase() === ownerEmail) {
         setAllowed(true);
         setEmail(user.email);
-
-        const { data, error } = await supabase
-          .from("requests")
-          .select("*")
-          .order("id", { ascending: false });
-
-        if (!error && data) {
-          setRequests(data);
-        }
+        await loadRequests();
       }
 
       setLoading(false);
@@ -87,9 +99,35 @@ export default function OwnerPage() {
     loadOwnerPanel();
   }, []);
 
+  async function updateRequest(
+    id: string,
+    updates: Partial<Pick<RequestRow, "status" | "hired">>
+  ) {
+    try {
+      setUpdatingId(id);
+
+      const { error } = await supabase.from("requests").update(updates).eq("id", id);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setRequests((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...updates } as RequestRow : item))
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   const totalRequests = requests.length;
-  const pendingCount = requests.filter((r) => !r.hired && (r.status || "").toLowerCase() === "submitted").length;
-  const approvedCount = requests.filter((r) => !r.hired && (r.status || "").toLowerCase() === "approved").length;
+  const pendingCount = requests.filter(
+    (r) => !r.hired && (r.status || "").toLowerCase() === "submitted"
+  ).length;
+  const approvedCount = requests.filter(
+    (r) => !r.hired && (r.status || "").toLowerCase() === "approved"
+  ).length;
   const hiredCount = requests.filter((r) => r.hired).length;
 
   const filteredRequests = useMemo(() => {
@@ -164,35 +202,21 @@ export default function OwnerPage() {
             >
               View Registrations
             </button>
+
             <button
+              onClick={loadRequests}
               className="rounded-xl border border-violet-400/30 bg-violet-400/10 px-4 py-2 text-sm font-medium text-violet-200 backdrop-blur-xl transition hover:bg-violet-400/15 hover:shadow-[0_0_24px_rgba(168,85,247,0.14)]"
             >
-              Admin Tools
+              Refresh
             </button>
           </div>
         </div>
 
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Total Requests"
-            value={totalRequests}
-            accent="cyan"
-          />
-          <StatCard
-            label="Pending Review"
-            value={pendingCount}
-            accent="violet"
-          />
-          <StatCard
-            label="Approved"
-            value={approvedCount}
-            accent="blue"
-          />
-          <StatCard
-            label="Hired"
-            value={hiredCount}
-            accent="emerald"
-          />
+          <StatCard label="Total Requests" value={totalRequests} accent="cyan" />
+          <StatCard label="Pending Review" value={pendingCount} accent="violet" />
+          <StatCard label="Approved" value={approvedCount} accent="blue" />
+          <StatCard label="Hired" value={hiredCount} accent="emerald" />
         </div>
 
         {showList && (
@@ -238,6 +262,7 @@ export default function OwnerPage() {
               ) : (
                 filteredRequests.map((item) => {
                   const badge = statusBadge(item.status, item.hired);
+                  const isBusy = updatingId === item.id;
 
                   return (
                     <div
@@ -274,10 +299,57 @@ export default function OwnerPage() {
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-3">
-                        <ActionButton color="cyan">Review</ActionButton>
-                        <ActionButton color="blue">Approve</ActionButton>
-                        <ActionButton color="rose">Reject</ActionButton>
-                        <ActionButton color="emerald">Hire</ActionButton>
+                        <ActionButton
+                          color="cyan"
+                          disabled={isBusy}
+                          onClick={() =>
+                            updateRequest(item.id, {
+                              status: "reviewing",
+                              hired: false,
+                            })
+                          }
+                        >
+                          {isBusy ? "Updating..." : "Review"}
+                        </ActionButton>
+
+                        <ActionButton
+                          color="blue"
+                          disabled={isBusy}
+                          onClick={() =>
+                            updateRequest(item.id, {
+                              status: "approved",
+                              hired: false,
+                            })
+                          }
+                        >
+                          {isBusy ? "Updating..." : "Approve"}
+                        </ActionButton>
+
+                        <ActionButton
+                          color="rose"
+                          disabled={isBusy}
+                          onClick={() =>
+                            updateRequest(item.id, {
+                              status: "rejected",
+                              hired: false,
+                            })
+                          }
+                        >
+                          {isBusy ? "Updating..." : "Reject"}
+                        </ActionButton>
+
+                        <ActionButton
+                          color="emerald"
+                          disabled={isBusy}
+                          onClick={() =>
+                            updateRequest(item.id, {
+                              status: "approved",
+                              hired: true,
+                            })
+                          }
+                        >
+                          {isBusy ? "Updating..." : "Hire"}
+                        </ActionButton>
                       </div>
                     </div>
                   );
@@ -354,9 +426,13 @@ function FilterButton({
 function ActionButton({
   children,
   color,
+  disabled,
+  onClick,
 }: {
   children: React.ReactNode;
   color: "cyan" | "blue" | "rose" | "emerald";
+  disabled?: boolean;
+  onClick?: () => void;
 }) {
   const map = {
     cyan: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15",
@@ -368,7 +444,9 @@ function ActionButton({
 
   return (
     <button
-      className={`rounded-xl border px-4 py-2 text-sm font-medium transition ${map[color]}`}
+      disabled={disabled}
+      onClick={onClick}
+      className={`rounded-xl border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${map[color]}`}
     >
       {children}
     </button>

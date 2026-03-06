@@ -44,12 +44,13 @@ const JOB_STEPS = [
 const HIRE_STEPS = [
   { key: "biz", q: "လုပ်ငန်းအမည် (Business Name)?" },
   { key: "phone", q: "ဆက်သွယ်ရန်ဖုန်းနံပါတ်?" },
-  { key: "position", q: "အလုပ်ရာထူး (Sales)?" },
+  { key: "position", q: "အလုပ်ရာထူး / ဝန်ထမ်းလိုအပ်ချက်?" },
   { key: "salary_range", q: "လစာအပိုင်းအခြား (ဥ. 300k–450k)?" },
-  { key: "commission", q: "Commission ရှိပါသလား? (ရှိ/မရှိ + %/rule)" },
+  { key: "commission", q: "ကော်မရှင် ရှိပါသလား? (ရှိ/မရှိ + %/rule)" },
   { key: "hours", q: "အလုပ်ချိန် (ဥ. 9AM–6PM) + Off day?" },
   { key: "location", q: "လုပ်ငန်းတည်နေရာ (မြို့နယ်/လိပ်စာအတို)?" },
   { key: "urgency", q: "အရေးပေါ်အဆင့် (ဥ. Today/This week)?" },
+  { key: "requirements", q: "အခြားလိုအပ်ချက်များ (ဥ. experience, age, skills)?" },
 ];
 
 function uid() {
@@ -308,8 +309,7 @@ async function submitIntake(payload: any) {
       hours: isJob ? "" : payload.data?.hours ?? "",
       location: isJob ? "" : payload.data?.location ?? "",
       urgency: isJob ? "" : payload.data?.urgency ?? "",
-      requirements: isJob ? "" : payload.data?.position ?? "",
-    }),
+requirements: isJob ? "" : payload.data?.requirements ?? "",    }),
   });
 
   const data = await res.json().catch(() => ({}));

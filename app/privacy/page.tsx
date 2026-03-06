@@ -16,7 +16,7 @@ function Section({ title, content }: { title: string; content: string }) {
 }
 
 export default function PrivacyPage() {
-  const [lang, setLang] = useState<Lang>("mm");
+  const [lang, setLang] = useState<Lang>("en");
   const isMM = lang === "mm";
 
   return (

@@ -6,7 +6,7 @@ type Lang = "mm" | "en";
 
 export default function TermsPage() {
 
-const [lang,setLang] = useState<Lang>("mm");
+const [lang, setLang] = useState<Lang>("en");
 const isMM = lang === "mm";
 
 return(

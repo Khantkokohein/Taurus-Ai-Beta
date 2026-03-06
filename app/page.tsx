@@ -293,14 +293,22 @@ async function createImage(prompt: string) {
   }
 
   async function submitIntake(payload: any) {
-    const res = await fetch("/api/intake", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error("Submit failed");
-    return res.json().catch(() => ({}));
-  }
+  const isJob = payload.kind === "job";
+
+  const res = await fetch("/api/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: isJob ? "job" : "hire",
+      name: isJob ? payload.data?.name ?? "" : payload.data?.biz ?? "",
+      email: payload.user?.email ?? "",
+      job_title: isJob ? payload.data?.exp ?? "" : payload.data?.position ?? "",
+    }),
+  });
+
+  if (!res.ok) throw new Error("Submit failed");
+  return res.json().catch(() => ({}));
+}
 
   function nextMissingStep(kind: IntakeKind, data: Record<string, any>) {
     const steps = kind === "job" ? JOB_STEPS : HIRE_STEPS;

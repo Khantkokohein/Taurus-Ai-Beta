@@ -15,11 +15,11 @@ type RequestRow = {
   hired: boolean;
   created_at: string;
   salary_range: string | null;
-commission: string | null;
-hours: string | null;
-location: string | null;
-urgency: string | null;
-requirements: string | null;
+  commission: string | null;
+  hours: string | null;
+  location: string | null;
+  urgency: string | null;
+  requirements: string | null;
 };
 
 function statusBadge(status: string, hired: boolean) {
@@ -120,8 +120,28 @@ export default function OwnerPage() {
       }
 
       setRequests((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, ...updates } as RequestRow : item))
+        prev.map((item) => (item.id === id ? ({ ...item, ...updates } as RequestRow) : item))
       );
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    const ok = window.confirm("Delete this request?");
+    if (!ok) return;
+
+    try {
+      setUpdatingId(id);
+
+      const { error } = await supabase.from("requests").delete().eq("id", id);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setRequests((prev) => prev.filter((item) => item.id !== id));
     } finally {
       setUpdatingId(null);
     }
@@ -301,11 +321,11 @@ export default function OwnerPage() {
                         <InfoBox label="Email" value={item.email || "-"} />
                         <InfoBox label="Phone" value={item.phone || "-"} />
                         <InfoBox label="Salary Range" value={item.salary_range || "-"} />
-<InfoBox label="Commission" value={item.commission || "-"} />
-<InfoBox label="Working Hours" value={item.hours || "-"} />
-<InfoBox label="Location" value={item.location || "-"} />
-<InfoBox label="Urgency Level" value={item.urgency || "-"} />
-<InfoBox label="Requirements" value={item.requirements || "-"} />
+                        <InfoBox label="Commission" value={item.commission || "-"} />
+                        <InfoBox label="Working Hours" value={item.hours || "-"} />
+                        <InfoBox label="Location" value={item.location || "-"} />
+                        <InfoBox label="Urgency Level" value={item.urgency || "-"} />
+                        <InfoBox label="Requirements" value={item.requirements || "-"} />
                         <InfoBox label="Job Title / Exp" value={item.job_title || "-"} />
                         <InfoBox label="Submitted" value={item.submitted ? "YES" : "NO"} />
                       </div>
@@ -361,6 +381,14 @@ export default function OwnerPage() {
                           }
                         >
                           {isBusy ? "Updating..." : "Hire"}
+                        </ActionButton>
+
+                        <ActionButton
+                          color="red"
+                          disabled={isBusy}
+                          onClick={() => handleDelete(item.id)}
+                        >
+                          {isBusy ? "Deleting..." : "Delete"}
                         </ActionButton>
                       </div>
                     </div>
@@ -442,7 +470,7 @@ function ActionButton({
   onClick,
 }: {
   children: React.ReactNode;
-  color: "cyan" | "blue" | "rose" | "emerald";
+  color: "cyan" | "blue" | "rose" | "emerald" | "red";
   disabled?: boolean;
   onClick?: () => void;
 }) {
@@ -452,6 +480,7 @@ function ActionButton({
     rose: "border-rose-400/30 bg-rose-400/10 text-rose-200 hover:bg-rose-400/15",
     emerald:
       "border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15",
+    red: "border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/15",
   } as const;
 
   return (

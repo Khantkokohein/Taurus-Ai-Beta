@@ -303,6 +303,12 @@ async function submitIntake(payload: any) {
       email: payload.user?.email ?? "",
       phone: payload.data?.phone ?? "",
       job_title: isJob ? payload.data?.exp ?? "" : payload.data?.position ?? "",
+      salary_range: isJob ? "" : payload.data?.salary_range ?? "",
+      commission: isJob ? "" : payload.data?.commission ?? "",
+      hours: isJob ? "" : payload.data?.hours ?? "",
+      location: isJob ? "" : payload.data?.location ?? "",
+      urgency: isJob ? "" : payload.data?.urgency ?? "",
+      requirements: isJob ? "" : payload.data?.position ?? "",
     }),
   });
 

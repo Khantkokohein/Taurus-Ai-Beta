@@ -11,15 +11,23 @@ export async function POST(req: Request) {
     );
 
     const payload = {
-      type: body?.type ?? null,
-      name: body?.name ?? null,
-      email: body?.email ?? null,
-      phone: body?.phone ?? null,
-      job_title: body?.job_title ?? null,
-      submitted: true,
-      status: "submitted",
-      hired: false,
-    };
+  type: body?.type ?? null,
+  name: body?.name ?? null,
+  email: body?.email ?? null,
+  phone: body?.phone ?? null,
+  job_title: body?.job_title ?? null,
+
+  salary_range: body?.salary_range ?? null,
+  commission: body?.commission ?? null,
+  hours: body?.hours ?? null,
+  location: body?.location ?? null,
+  urgency: body?.urgency ?? null,
+  requirements: body?.requirements ?? null,
+
+  submitted: true,
+  status: "submitted",
+  hired: false,
+};
 
     const { data, error } = await supabase
       .from("requests")

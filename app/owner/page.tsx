@@ -14,6 +14,12 @@ type RequestRow = {
   status: string;
   hired: boolean;
   created_at: string;
+  salary_range: string | null;
+commission: string | null;
+hours: string | null;
+location: string | null;
+urgency: string | null;
+requirements: string | null;
 };
 
 function statusBadge(status: string, hired: boolean) {
@@ -294,6 +300,12 @@ export default function OwnerPage() {
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <InfoBox label="Email" value={item.email || "-"} />
                         <InfoBox label="Phone" value={item.phone || "-"} />
+                        <InfoBox label="Salary Range" value={item.salary_range || "-"} />
+<InfoBox label="Commission" value={item.commission || "-"} />
+<InfoBox label="Working Hours" value={item.hours || "-"} />
+<InfoBox label="Location" value={item.location || "-"} />
+<InfoBox label="Urgency Level" value={item.urgency || "-"} />
+<InfoBox label="Requirements" value={item.requirements || "-"} />
                         <InfoBox label="Job Title / Exp" value={item.job_title || "-"} />
                         <InfoBox label="Submitted" value={item.submitted ? "YES" : "NO"} />
                       </div>

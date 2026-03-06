@@ -1,35 +1,58 @@
-import { createClient } from "@supabase/supabase-js"
-import { notFound } from "next/navigation"
+"use client";
 
-export default async function OwnerPage() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+export default function OwnerPage() {
+  const [loading, setLoading] = useState(true);
+  const [allowed, setAllowed] = useState(false);
+  const [email, setEmail] = useState("");
 
-  if (!user) {
-    notFound()
+  useEffect(() => {
+    async function checkOwner() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const ownerEmail = "koheinkhantko51@gmail.com";
+
+      if (user?.email?.toLowerCase() === ownerEmail) {
+        setAllowed(true);
+        setEmail(user.email);
+      }
+
+      setLoading(false);
+    }
+
+    checkOwner();
+  }, []);
+
+  if (loading) {
+    return (
+      <main style={{ padding: 40, color: "white" }}>
+        <p>Loading owner panel...</p>
+      </main>
+    );
   }
 
-  const ownerEmails = (process.env.OWNER_EMAILS || "").split(",")
-
-  if (!ownerEmails.includes(user.email || "")) {
-    notFound()
+  if (!allowed) {
+    return (
+      <main style={{ padding: 40, color: "white" }}>
+        <h1>Access Denied</h1>
+        <p>This page is for owner only.</p>
+      </main>
+    );
   }
 
   return (
     <main style={{ padding: 40, color: "white" }}>
       <h1>Taurus AI Owner Panel</h1>
-      <p>Welcome {user.email}</p>
+      <p>Welcome {email}</p>
 
       <div style={{ marginTop: 20 }}>
         <button style={{ padding: 10 }}>View Registrations</button>
         <button style={{ padding: 10, marginLeft: 10 }}>Admin Tools</button>
       </div>
     </main>
-  )
+  );
 }

@@ -34,10 +34,12 @@ export default function OwnerPage() {
         setAllowed(true);
         setEmail(user.email);
 
-        const { data, error } = await supabase
-          .from("requests")
-          .select("*")
-          .order("created_at", { ascending: false });
+       const { data, error } = await supabase
+  .from("requests")
+  .select("*")
+  .order("id", { ascending: false });
+
+  console.log("OWNER REQUESTS:", data, error);
 
         if (!error && data) {
           setRequests(data);

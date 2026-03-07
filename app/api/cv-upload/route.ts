@@ -41,8 +41,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "jpg";
+    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+    const safeExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "png";
+
     const fileName = `cv_${Date.now()}_${Math.random()
       .toString(36)
       .slice(2)}.${safeExt}`;
@@ -50,27 +51,26 @@ export async function POST(req: Request) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const { error: uploadError } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from("cv-uploads")
       .upload(fileName, buffer, {
         contentType: mime,
         upsert: false,
       });
 
-    if (uploadError) {
-      return NextResponse.json(
-        { error: uploadError.message },
-        { status: 500 }
-      );
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    const uploadedPath = data?.path || fileName;
 
     const { data: publicUrlData } = supabase.storage
       .from("cv-uploads")
-      .getPublicUrl(fileName);
+      .getPublicUrl(uploadedPath);
 
     return NextResponse.json({
       url: publicUrlData.publicUrl,
-      path: fileName,
+      path: uploadedPath,
     });
   } catch (error: any) {
     return NextResponse.json(

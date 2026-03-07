@@ -413,16 +413,16 @@ if (yn === "yes") {
     const payload = buildIntakePayload(intakeKind, intake);
     await submitIntake(payload);
 
-    const cvUrl =
-      `/cv-preview?name=${encodeURIComponent(intake.name ?? "")}` +
-      `&nrc=${encodeURIComponent(intake.nrc ?? "")}` +
-      `&age=${encodeURIComponent(intake.age ?? "")}` +
-      `&phone=${encodeURIComponent(intake.phone ?? "")}` +
-      `&address=${encodeURIComponent(intake.address ?? "")}` +
-      `&exp=${encodeURIComponent(intake.exp ?? "")}` +
-      `&salary=${encodeURIComponent(intake.salary ?? "")}` +
-      `&availability=${encodeURIComponent(intake.availability ?? "")}` +
-      `&cv_photo=${encodeURIComponent(intake.cv_photo ?? "")}`;
+const cvUrl =
+  `/cv-preview?name=${encodeURIComponent(intake.name ?? "")}` +
+  `&nrc=${encodeURIComponent(intake.nrc ?? "")}` +
+  `&age=${encodeURIComponent(intake.age ?? "")}` +
+  `&phone=${encodeURIComponent(intake.phone ?? "")}` +
+  `&address=${encodeURIComponent(intake.address ?? "")}` +
+  `&exp=${encodeURIComponent(intake.exp ?? "")}` +
+  `&salary=${encodeURIComponent(intake.salary ?? "")}` +
+  `&availability=${encodeURIComponent(intake.availability ?? "")}` +
+  `&cv_photo=${encodeURIComponent(intake.cv_photo ?? "")}`;
 
             setMessages((m) => [
   ...m,

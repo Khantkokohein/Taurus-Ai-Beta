@@ -40,6 +40,7 @@ const JOB_STEPS = [
   { key: "exp", q: "Sales experience (နှစ်/လ) ဘယ်လောက်ရှိပါသလဲ?" },
   { key: "salary", q: "မျှော်မှန်းလစာ (MMK)?" },
   { key: "availability", q: "အလုပ်စတင်နိုင်မယ့်ရက် (ဥပမာ ချက်ချင်း / 1 week)?" },
+  { key: "cv_photo", q: "CV / Resume photo ပို့ပေးပါ။" },
 ];
 const HIRE_STEPS = [
   { key: "biz", q: "လုပ်ငန်းအမည် (Business Name)?" },
@@ -135,7 +136,31 @@ async function createImage(prompt: string) {
 
   return dataRes as { url: string };
 }
+async function uploadCvPhoto(file: File) {
+  setCvUploading(true);
 
+  try {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `cv_${Date.now()}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from("cv-uploads")
+      .upload(fileName, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (error) throw error;
+
+    const { data: publicUrl } = supabase.storage
+      .from("cv-uploads")
+      .getPublicUrl(fileName);
+
+    return { url: publicUrl.publicUrl };
+  } finally {
+    setCvUploading(false);
+  }
+}
   // Auth state (Supabase)
   const [authed, setAuthed] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string; role: "free" | "pro" | "plus" } | null>(null);
@@ -152,10 +177,13 @@ async function createImage(prompt: string) {
   const [intakeKind, setIntakeKind] = useState<IntakeKind | null>(null);
   const [intake, setIntake] = useState<Record<string, any>>({});
   const [awaitingSubmit, setAwaitingSubmit] = useState(false);
+  const [cvUploading, setCvUploading] = useState(false);
+const [cvPhotoUrl, setCvPhotoUrl] = useState("");
 
   // Scroll anchor
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const cvFileRef = useRef<HTMLInputElement | null>(null);
 
   // Theme restore
   useEffect(() => {
@@ -405,33 +433,55 @@ requirements: isJob ? "" : payload.data?.requirements ?? "",    }),
         return;
       }
 
-      const missing = nextMissingStep(intakeKind, intake);
-      if (!missing) {
-        setAwaitingSubmit(true);
-        setMessages((m) => [...m, { id: uid(), role: "ai", text: "Submit လုပ်မလား? (YES / NO)", ts: Date.now() }]);
-        return;
-      }
+    const missing = nextMissingStep(intakeKind, intake);
 
-      const updated = { ...intake, [missing.key]: text };
-      setIntake(updated);
+if (!missing) {
+  setAwaitingSubmit(true);
+  setMessages((m) => [
+    ...m,
+    {
+      id: uid(),
+      role: "ai",
+      text: "Submit လုပ်မလား? (YES / NO)",
+      ts: Date.now(),
+    },
+  ]);
+  return;
+}
 
-      const next = nextMissingStep(intakeKind, updated);
-      if (next) {
-        setMessages((m) => [...m, { id: uid(), role: "ai", text: next.q, ts: Date.now() }]);
-      } else {
-        setAwaitingSubmit(true);
+if (missing.key === "cv_photo") {
+  setMessages((m) => [
+    ...m,
+    {
+      id: uid(),
+      role: "ai",
+      text: "ကျေးဇူးပြုပြီး CV / Resume photo ကို CV button နှိပ်ပြီး ပို့ပေးပါ။",
+      ts: Date.now(),
+    },
+  ]);
+  return;
+}
 
-        const summary =
-          intakeKind === "job"
-            ? `🧾 Summary (Job Seeker)\n• Name: ${updated.name ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• City: ${updated.city ?? "-"}\n• Exp: ${updated.exp ?? "-"}\n• Salary: ${updated.salary ?? "-"}\n• Start: ${updated.availability ?? "-"}`
-            : `🧾 Summary (Employer)\n• Business: ${updated.biz ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• Position: ${updated.position ?? "-"}\n• Salary: ${updated.salary_range ?? "-"}\n• Commission: ${updated.commission ?? "-"}\n• Hours: ${updated.hours ?? "-"}\n• Location: ${updated.location ?? "-"}\n• Urgency: ${updated.urgency ?? "-"}`;
+const updated = { ...intake, [missing.key]: text };
+setIntake(updated);
 
-        setMessages((m) => [
-          ...m,
-          { id: uid(), role: "ai", text: `${summary}\n\nSubmit လုပ်မလား? (YES / NO)`, ts: Date.now() },
-        ]);
-      }
-      return;
+const next = nextMissingStep(intakeKind, updated);
+if (next) {
+  setMessages((m) => [...m, { id: uid(), role: "ai", text: next.q, ts: Date.now() }]);
+} else {
+  setAwaitingSubmit(true);
+
+  const summary =
+    intakeKind === "job"
+      ? `🧾 Summary (Job Seeker)\n• Name: ${updated.name ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• City: ${updated.city ?? "-"}\n• Exp: ${updated.exp ?? "-"}\n• Salary: ${updated.salary ?? "-"}\n• Start: ${updated.availability ?? "-"}\n• CV Photo: ${updated.cv_photo ?? "-"}`
+      : `🧾 Summary (Employer)\n• Business: ${updated.biz ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• Position: ${updated.position ?? "-"}\n• Salary: ${updated.salary_range ?? "-"}\n• Commission: ${updated.commission ?? "-"}\n• Hours: ${updated.hours ?? "-"}\n• Location: ${updated.location ?? "-"}\n• Urgency: ${updated.urgency ?? "-"}`;
+
+  setMessages((m) => [
+    ...m,
+    { id: uid(), role: "ai", text: `${summary}\n\nSubmit လုပ်မလား? (YES / NO)`, ts: Date.now() },
+  ]);
+}
+return;
     }
 
     // normal chat mode
@@ -651,6 +701,71 @@ if (mode === "chat" && activePersona === "taurus" && text.toLowerCase().startsWi
             )}
           >
             <div className="flex items-end gap-2">
+             <input
+  ref={cvFileRef}
+  type="file"
+  accept="image/*"
+  className="hidden"
+  onChange={async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const result = await uploadCvPhoto(file);
+
+      const updated: Record<string, any> = {
+        ...intake,
+        cv_photo: result.url,
+      };
+
+      setCvPhotoUrl(result.url);
+      setIntake(updated);
+      setAwaitingSubmit(true);
+
+      const summary =
+        intakeKind === "job"
+          ? `🧾 Summary (Job Seeker)
+• Name: ${updated.name ?? "-"}
+• Phone: ${updated.phone ?? "-"}
+• City: ${updated.city ?? "-"}
+• Exp: ${updated.exp ?? "-"}
+• Salary: ${updated.salary ?? "-"}
+• Start: ${updated.availability ?? "-"}
+• CV Photo: ${updated.cv_photo ?? "-"}`
+          : `🧾 Summary (Employer)
+• Business: ${updated.biz ?? "-"}
+• Phone: ${updated.phone ?? "-"}
+• Position: ${updated.position ?? "-"}
+• Salary: ${updated.salary_range ?? "-"}
+• Commission: ${updated.commission ?? "-"}
+• Hours: ${updated.hours ?? "-"}
+• Location: ${updated.location ?? "-"}
+• Urgency: ${updated.urgency ?? "-"}`;
+
+      setMessages((m) => [
+        ...m,
+        {
+          id: uid(),
+          role: "ai",
+          text: `${summary}\n\nSubmit လုပ်မလား? (YES / NO)`,
+          ts: Date.now(),
+        },
+      ]);
+    } catch (err: any) {
+      setMessages((m) => [
+        ...m,
+        {
+          id: uid(),
+          role: "ai",
+          text: "⚠️ CV upload failed: " + err.message,
+          ts: Date.now(),
+        },
+      ]);
+    } finally {
+      e.target.value = "";
+    }
+  }}
+/>
               {mode === "recruitment" ? (
                 <button
                   onClick={() => {
@@ -681,49 +796,65 @@ if (mode === "chat" && activePersona === "taurus" && text.toLowerCase().startsWi
   📷
 </button>
               )}
+<div className="flex-1">
+  <textarea
+    ref={textareaRef}
+    value={input}
+    onChange={(e) => {
+      setInput(e.target.value);
+      autoGrowTextarea(e.currentTarget);
+    }}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }}
+    placeholder={mode === "recruitment" ? "အဖြေကိုရေးပြီး Enter နှိပ်ပါ…" : "Type a message…"}
+    className={classNames(
+      "w-full resize-none rounded-2xl border px-4 py-3 text-[14px] outline-none",
+      "border-emerald-200/60 bg-white/75 focus:border-emerald-300/80",
+      "dark:border-white/15 dark:bg-zinc-950/35 dark:text-white dark:placeholder-white/35 dark:focus:border-white/25"
+    )}
+    rows={1}
+  />
+  <div className="mt-1 flex items-center justify-between px-1">
+    <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+      {mode === "recruitment" ? "Register Mode • Structured intake" : "Glass • Minimal • Accent only"}
+    </span>
+    <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+      {sending ? "Thinking…" : " "}
+    </span>
+  </div>
+</div>
 
-              <div className="flex-1">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    autoGrowTextarea(e.currentTarget);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  placeholder={mode === "recruitment" ? "အဖြေကိုရေးပြီး Enter နှိပ်ပါ…" : "Type a message…"}
-                  className={classNames(
-                    "w-full resize-none rounded-2xl border px-4 py-3 text-[14px] outline-none",
-                    "border-emerald-200/60 bg-white/75 focus:border-emerald-300/80",
-                    "dark:border-white/15 dark:bg-zinc-950/35 dark:text-white dark:placeholder-white/35 dark:focus:border-white/25"
-                  )}
-                  rows={1}
-                />
-                <div className="mt-1 flex items-center justify-between px-1">
-                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {mode === "recruitment" ? "Register Mode • Structured intake" : "Glass • Minimal • Accent only"}
-                  </span>
-                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{sending ? "Thinking…" : " "}</span>
-                </div>
-              </div>
+{mode === "recruitment" && (
+  <button
+    onClick={() => cvFileRef.current?.click()}
+    disabled={cvUploading}
+    className={classNames(
+      "h-11 px-3 rounded-2xl border backdrop-blur-xl text-[13px] font-semibold",
+      cvUploading
+        ? "border-zinc-200/70 bg-white/55 text-zinc-400 cursor-not-allowed dark:border-white/10 dark:bg-zinc-900/35 dark:text-white/35"
+        : "border-emerald-200/80 bg-white/75 text-emerald-800 hover:bg-white/90 dark:border-white/15 dark:bg-zinc-900/55 dark:text-white dark:hover:bg-zinc-900/70"
+    )}
+  >
+    {cvUploading ? "Uploading…" : "CV"}
+  </button>
+)}
 
-              <button
-                onClick={sendMessage}
-                disabled={!input.trim() || sending}
-                className={classNames(
-                  "h-11 px-4 rounded-2xl border backdrop-blur-xl text-[13px] font-semibold",
-                  !input.trim() || sending
-                    ? "border-zinc-200/70 bg-white/55 text-zinc-400 cursor-not-allowed dark:border-white/10 dark:bg-zinc-900/35 dark:text-white/35"
-                    : "border-emerald-200/80 bg-white/75 text-emerald-800 hover:bg-white/90 dark:border-white/15 dark:bg-zinc-900/55 dark:text-white dark:hover:bg-zinc-900/70"
-                )}
-              >
-                Send
-              </button>
+<button
+  onClick={sendMessage}
+  disabled={!input.trim() || sending}
+  className={classNames(
+    "h-11 px-4 rounded-2xl border backdrop-blur-xl text-[13px] font-semibold",
+    !input.trim() || sending
+      ? "border-zinc-200/70 bg-white/55 text-zinc-400 cursor-not-allowed dark:border-white/10 dark:bg-zinc-900/35 dark:text-white/35"
+      : "border-emerald-200/80 bg-white/75 text-emerald-800 hover:bg-white/90 dark:border-white/15 dark:bg-zinc-900/55 dark:text-white dark:hover:bg-zinc-900/70"
+  )}
+>
+  Send
+</button>
             </div>
           </div>
         </div>

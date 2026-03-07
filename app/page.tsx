@@ -147,32 +147,22 @@ async function createImage(prompt: string) {
 }
 async function uploadCvPhoto(file: File) {
   setCvUploading(true);
-
   try {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `cv_${Date.now()}.${fileExt}`;
-
     const formData = new FormData();
-formData.append("file", file);
+    formData.append("file", file);
 
-const res = await fetch("/api/cv-upload", {
-  method: "POST",
-  body: formData,
-});
+    const res = await fetch("/api/cv-upload", {
+      method: "POST",
+      body: formData,
+    });
 
-const result = await res.json();
+    const result = await res.json();
 
-if (!res.ok) {
-  throw new Error(result.error || "Upload failed");
-}
+    if (!res.ok) {
+      throw new Error(result.error || "Upload failed");
+    }
 
-const url = result.url;
-
-    const { data: publicUrl } = supabase.storage
-      .from("cv-uploads")
-      .getPublicUrl(fileName);
-
-    return { url: publicUrl.publicUrl };
+    return { url: result.url };
   } finally {
     setCvUploading(false);
   }

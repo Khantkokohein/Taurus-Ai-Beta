@@ -807,18 +807,22 @@ if (mode === "chat" && activePersona === "taurus" && text.toLowerCase().startsWi
                   - End Chat & Choose AI
                   (Main screen already has Choice AI Assistant) */}
 
-              {/* Primary actions */}
-              <div className="mt-4 space-y-2">
-                <ComingSoonItem label="Advanced Image Generation — Coming Soon" />
+             {/* Primary actions */}
+<div className="mt-4 space-y-2">
+  <ComingSoonItem label="Advanced Image Generation — Coming Soon" />
 
-                <ComingSoonItem label="History (Coming Soon)" />
-                <ComingSoonItem label="Pro / Plus (Coming Soon)" />
-                <ComingSoonItem label="TON Tools (Coming Soon)" />
-                <ComingSoonItem label="Next Level Roadmap (Coming Soon)" />
-                <ComingSoonItem label="Custom Local Shop Database (Coming Soon)" />
-                <ComingSoonItem label="Google Map Shop Tracker (Coming Soon)" />
-              </div>
+  <Link href="/history">
+    <GlassButton subtle onClick={() => setMenuOpen(false)}>
+      History
+    </GlassButton>
+  </Link>
 
+  <ComingSoonItem label="Pro / Plus (Coming Soon)" />
+  <ComingSoonItem label="TON Tools (Coming Soon)" />
+  <ComingSoonItem label="Next Level Roadmap (Coming Soon)" />
+  <ComingSoonItem label="Custom Local Shop Database (Coming Soon)" />
+  <ComingSoonItem label="Google Map Shop Tracker (Coming Soon)" />
+</div>
               {/* Persona shortcuts */}
               <div className="mt-5">
                 <div className="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">Persona Shortcuts</div>

@@ -30,13 +30,16 @@ function CvPreviewContent() {
       <div className="mx-auto max-w-4xl rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
         <div className="mb-8 flex items-start gap-6">
           <div className="h-40 w-32 overflow-hidden rounded-2xl border border-zinc-300 bg-zinc-100">
-            {cvPhoto ? (
-              <img
-                src={cvPhoto}
-                alt="Profile"
-                className="h-full w-full object-cover"
-              />
-            ) : null}
+         {cvPhoto ? (
+  <img
+    src={decodeURIComponent(cvPhoto)}
+    alt="Profile"
+    className="h-full w-full object-cover"
+    onError={(e) => {
+      (e.currentTarget as HTMLImageElement).style.display = "none";
+    }}
+  />
+) : null}
           </div>
 
           <div className="flex-1">

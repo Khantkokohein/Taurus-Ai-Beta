@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: Request) {
   try {
@@ -13,21 +17,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const fileName = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
+    const { data, error } = await supabase.storage
+      .from("cv-uploads")
+      .upload(fileName, file);
 
-    const safeName = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
-    const filePath = path.join(uploadDir, safeName);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
-    await writeFile(filePath, buffer);
+    const { data: publicUrl } = supabase.storage
+      .from("cv-uploads")
+      .getPublicUrl(fileName);
 
     return NextResponse.json({
-      url: `/uploads/${safeName}`,
+      url: publicUrl.publicUrl,
     });
-  } catch (error) {
+
+  } catch {
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }

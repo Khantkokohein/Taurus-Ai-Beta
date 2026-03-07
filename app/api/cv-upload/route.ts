@@ -51,27 +51,23 @@ export async function POST(req: Request) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const { data, error } = await supabase.storage
-      .from("cv-uploads")
-      .upload(fileName, buffer, {
-        contentType: mime,
-        upsert: false,
-      });
+const { data, error } = await supabase.storage
+  .from("cv-uploads")
+  .upload(fileName, buffer, {
+    contentType: mime,
+  });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+if (error) {
+  return NextResponse.json({ error: error.message }, { status: 500 });
+}
 
-    const uploadedPath = data?.path || fileName;
+const { data: publicUrlData } = supabase.storage
+  .from("cv-uploads")
+  .getPublicUrl(data.path);
 
-    const { data: publicUrlData } = supabase.storage
-      .from("cv-uploads")
-      .getPublicUrl(uploadedPath);
-
-    return NextResponse.json({
-      url: publicUrlData.publicUrl,
-      path: uploadedPath,
-    });
+return NextResponse.json({
+  url: publicUrlData.publicUrl,
+});
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || "Upload failed" },

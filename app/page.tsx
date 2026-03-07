@@ -143,14 +143,21 @@ async function uploadCvPhoto(file: File) {
     const fileExt = file.name.split(".").pop();
     const fileName = `cv_${Date.now()}.${fileExt}`;
 
-    const { data, error } = await supabase.storage
-      .from("cv-uploads")
-      .upload(fileName, file, {
-        cacheControl: "3600",
-        upsert: false,
-      });
+    const formData = new FormData();
+formData.append("file", file);
 
-    if (error) throw error;
+const res = await fetch("/api/cv-upload", {
+  method: "POST",
+  body: formData,
+});
+
+const result = await res.json();
+
+if (!res.ok) {
+  throw new Error(result.error || "Upload failed");
+}
+
+const url = result.url;
 
     const { data: publicUrl } = supabase.storage
       .from("cv-uploads")

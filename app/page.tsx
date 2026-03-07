@@ -32,15 +32,24 @@ const PERSONAS: { key: PersonaKey; title: string; subtitle: string; tone: string
   { key: "emergency", title: "Emergency AI", subtitle: "Urgent Guidance", tone: "Urgent" },
   { key: "friend", title: "Friend AI", subtitle: "Friendly Buddy", tone: "Friendly" },
 ];
-
 const JOB_STEPS = [
-  { key: "name", q: "အမည် (Full Name) ကိုရေးပေးပါ။" },
-  { key: "phone", q: "ဖုန်းနံပါတ် (09xxxxxxxxx)?" },
-  { key: "city", q: "မြို့ (ဥပမာ မော်လမြိုင်)?" },
-  { key: "exp", q: "Sales experience (နှစ်/လ) ဘယ်လောက်ရှိပါသလဲ?" },
+  { key: "name", q: "အမည် (Full Name) ပြောပါ။" },
+
+  { key: "nrc", q: "မှတ်ပုံတင်နံပါတ် (NRC) ဖြည့်ပါ။" },
+
+  { key: "age", q: "အသက် ဘယ်လောက်ရှိပါသလဲ?" },
+
+  { key: "phone", q: "ဖုန်းနံပါတ်?" },
+
+  { key: "address", q: "နေရပ်လိပ်စာ အတိအကျ ဖြည့်ပါ။" },
+
+  { key: "exp", q: "လုပ်ငန်းအတွေ့အကြုံ (နှစ် / လ) ဘယ်လောက်ရှိသလဲ?" },
+
   { key: "salary", q: "မျှော်မှန်းလစာ (MMK)?" },
-  { key: "availability", q: "အလုပ်စတင်နိုင်မယ့်ရက် (ဥပမာ ချက်ချင်း / 1 week)?" },
-  { key: "cv_photo", q: "CV / Resume photo ပို့ပေးပါ။" },
+
+  { key: "availability", q: "အလုပ်ဘယ်နေ့ စတင်နိုင်မလဲ? (ဥပမာ – 1 week)" },
+
+  { key: "cv_photo", q: "CV အတွက် အသုံးပြုမည့် မျက်နှာပုံ (profile photo) ပို့ပေးပါ။" },
 ];
 const HIRE_STEPS = [
   { key: "biz", q: "လုပ်ငန်းအမည် (Business Name)?" },
@@ -398,23 +407,36 @@ requirements: isJob ? "" : payload.data?.requirements ?? "",    }),
           resetIntake();
           return;
         }
+if (yn === "yes") {
+  setSending(true);
+  try {
+    const payload = buildIntakePayload(intakeKind, intake);
+    await submitIntake(payload);
 
-        if (yn === "yes") {
-          setSending(true);
-          try {
-            const payload = buildIntakePayload(intakeKind, intake);
-            await submitIntake(payload);
+    const cvUrl =
+      `/cv-preview?name=${encodeURIComponent(intake.name ?? "")}` +
+      `&nrc=${encodeURIComponent(intake.nrc ?? "")}` +
+      `&age=${encodeURIComponent(intake.age ?? "")}` +
+      `&phone=${encodeURIComponent(intake.phone ?? "")}` +
+      `&address=${encodeURIComponent(intake.address ?? "")}` +
+      `&exp=${encodeURIComponent(intake.exp ?? "")}` +
+      `&salary=${encodeURIComponent(intake.salary ?? "")}` +
+      `&availability=${encodeURIComponent(intake.availability ?? "")}` +
+      `&cv_photo=${encodeURIComponent(intake.cv_photo ?? "")}`;
 
             setMessages((m) => [
-              ...m,
-              {
-                id: uid(),
-                role: "ai",
-                text:
-                  "✅ Submit အောင်မြင်ပါတယ်။\n\nကျေးဇူးတင်ပါတယ်။ Owner (Admin) က review လုပ်ပြီး မကြာခင် ဆက်သွယ်ပေးပါမယ်။\n\nRegister Mode ထွက်ပြီး normal chat ပြန်သွားပါမယ်။",
-                ts: Date.now(),
-              },
-            ]);
+  ...m,
+  {
+    id: uid(),
+    role: "ai",
+    text:
+      "✅ Submit အောင်မြင်ပါတယ်။\n\n" +
+      "ကျေးဇူးတင်ပါတယ်။ Owner (Admin) က review လုပ်ပြီး မကြာခင် ဆက်သွယ်ပေးပါမယ်။\n\n" +
+      `Open CV Form:\n${window.location.origin}${cvUrl}\n\n` +
+      "Register Mode ထွက်ပြီး normal chat ပြန်သွားပါမယ်။",
+    ts: Date.now(),
+  },
+]);
             resetIntake();
           } catch (err: any) {
   setMessages((m) => [
@@ -478,11 +500,29 @@ if (next) {
 } else {
   setAwaitingSubmit(true);
 
-  const summary =
-    intakeKind === "job"
-      ? `🧾 Summary (Job Seeker)\n• Name: ${updated.name ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• City: ${updated.city ?? "-"}\n• Exp: ${updated.exp ?? "-"}\n• Salary: ${updated.salary ?? "-"}\n• Start: ${updated.availability ?? "-"}\n• CV Photo: ${updated.cv_photo ?? "-"}`
-      : `🧾 Summary (Employer)\n• Business: ${updated.biz ?? "-"}\n• Phone: ${updated.phone ?? "-"}\n• Position: ${updated.position ?? "-"}\n• Salary: ${updated.salary_range ?? "-"}\n• Commission: ${updated.commission ?? "-"}\n• Hours: ${updated.hours ?? "-"}\n• Location: ${updated.location ?? "-"}\n• Urgency: ${updated.urgency ?? "-"}`;
+ const summary =
+  intakeKind === "job"
+    ? `📄 CV PREVIEW
 
+• Full Name: ${updated.name ?? "-"}
+• NRC: ${updated.nrc ?? "-"}
+• Age: ${updated.age ?? "-"}
+• Phone: ${updated.phone ?? "-"}
+• Address: ${updated.address ?? "-"}
+• Work Experience: ${updated.exp ?? "-"}
+• Expected Salary: ${updated.salary ?? "-"}
+• Available Start Date: ${updated.availability ?? "-"}
+• Profile Photo: ${updated.cv_photo ?? "-"}`
+
+    : `🧾 Summary (Employer)
+• Business: ${updated.biz ?? "-"}
+• Phone: ${updated.phone ?? "-"}
+• Position: ${updated.position ?? "-"}
+• Salary: ${updated.salary_range ?? "-"}
+• Commission: ${updated.commission ?? "-"}
+• Hours: ${updated.hours ?? "-"}
+• Location: ${updated.location ?? "-"}
+• Urgency: ${updated.urgency ?? "-"}`;
   setMessages((m) => [
     ...m,
     { id: uid(), role: "ai", text: `${summary}\n\nSubmit လုပ်မလား? (YES / NO)`, ts: Date.now() },

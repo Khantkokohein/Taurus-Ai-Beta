@@ -1045,9 +1045,9 @@ if (mode === "chat" && activePersona === "taurus" && text.toLowerCase().startsWi
   </GlassButton>
 
   <div className="pt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-    Founder:{" "}
+    OWNER:{" "}
     <span className="font-semibold text-zinc-800 dark:text-zinc-100">
-      Khant Ko Ko Hein
+      AHKER MINN
     </span>
   </div>
 </div>

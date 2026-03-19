@@ -74,6 +74,8 @@ export default function OwnerPage() {
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "hired">("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  const ownerName = "Mr. Ahkar Minn";
+
   async function loadRequests() {
     const { data, error } = await supabase
       .from("requests")
@@ -93,7 +95,7 @@ export default function OwnerPage() {
 
       const ownerEmail = "koheinkhantko51@gmail.com";
 
-      if (user?.email?.toLowerCase() === ownerEmail) {
+      if (user?.email?.toLowerCase() === ownerEmail.toLowerCase()) {
         setAllowed(true);
         setEmail(user.email);
         await loadRequests();
@@ -215,10 +217,16 @@ export default function OwnerPage() {
               <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
               TAURUS AI • Owner Command Center
             </div>
+
             <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
               Futuristic Admin Dashboard
             </h1>
-            <p className="mt-2 text-zinc-400">Signed in as {email}</p>
+
+            <p className="mt-2 text-zinc-300">
+              Owner: <span className="font-semibold text-white">{ownerName}</span>
+            </p>
+
+            <p className="mt-1 text-zinc-400">Signed in as {email}</p>
           </div>
 
           <div className="flex flex-wrap gap-3">

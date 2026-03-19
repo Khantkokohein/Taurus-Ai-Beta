@@ -22,10 +22,7 @@ export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-[rgba(246,251,248,0.92)] dark:bg-[#050505] text-zinc-900 dark:text-zinc-100 px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-8">
-
-        {/* Header */}
         <div className="rounded-3xl border border-emerald-300/60 dark:border-white/15 bg-white/70 dark:bg-zinc-900/60 backdrop-blur-xl shadow-[0_10px_40px_rgba(16,185,129,0.08)] p-8 relative">
-
           <div className="absolute top-5 right-5 flex gap-2">
             <button
               onClick={() => setLang("mm")}
@@ -59,9 +56,7 @@ export default function PrivacyPage() {
           <p className="text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
             Company Name: OMK Technologies Co., Ltd.
             <br />
-            Founder: Mr. Khant Ko Ko Hein
-            <br />
-            Co-Founder: Moe Thazin Oo
+            Owner: AHKAR MINN
             <br />
             Business Registration Status: Registration in Progress
             <br />
@@ -173,7 +168,7 @@ Update လုပ်ထားသော version ကို ဒီစာမျက်
         />
 
         <div className="text-sm text-center text-zinc-600 dark:text-zinc-400">
-          Contact: koheinkhantko51@gmail.com
+          Contact: support@taurusai.site
           <br />
           TAURUS AI — Born in Myanmar, Built for the World
         </div>
